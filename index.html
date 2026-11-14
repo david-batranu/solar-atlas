@@ -111,7 +111,16 @@
       <div class="control__head">
         <span class="eyebrow">Orbit lines</span>
         <span class="control__head-right">
-          <span class="micro" id="trail-hint">glowing trails</span>
+          <label class="trail-span" id="trail-span-control" title="How much past orbit history Solid and Fading draw. Longer spans keep older positions visible.">
+            <span class="trail-span__label">Span</span>
+            <select class="trail-span__select" id="trail-span" aria-label="Orbit history span for Solid and Fading">
+              <option value="0.5">0.5×</option>
+              <option value="1" selected>1×</option>
+              <option value="2">2×</option>
+              <option value="5">5×</option>
+              <option value="10">10×</option>
+            </select>
+          </label>
           <button class="worlds-open" type="button" id="worlds-open" aria-haspopup="dialog" aria-controls="worlds-dialog" aria-expanded="false" title="Show or hide worlds and their orbits">
             <svg viewBox="0 0 18 18" fill="none" aria-hidden="true">
               <path d="M2.2 9c2.1-3.15 4.4-4.7 6.8-4.7s4.7 1.55 6.8 4.7c-2.1 3.15-4.4 4.7-6.8 4.7S4.3 12.15 2.2 9Z" stroke="currentColor" stroke-width="1.2"/>
@@ -285,6 +294,10 @@
         <div class="help-row">
           <span class="shortcut">Worlds</span>
           <p>Use <strong>Worlds</strong> beside Orbit lines to show or hide markers, labels and orbit lines. The center world always stays visible. Press <kbd>V</kbd> to open it.</p>
+        </div>
+        <div class="help-row">
+          <span class="shortcut">Span</span>
+          <p>The <strong>Span</strong> selector beside Orbit lines sets how much history Solid and Fading draw, from 0.5× to 10×. Longer spans keep older positions available; Fading leaves a faint guide across the full span.</p>
         </div>
         <div class="help-row">
           <span class="shortcut">Esc</span>

@@ -4,7 +4,7 @@
 
 Open the orrery and watch the planets move along their real Keplerian paths. Change the center
 of the view to the Sun, Earth, Jupiter, the Moon, or any other body, and every orbit is
-recomputed around that new anchor. Switch between glowing comet trails, clean solid lines, and complete, full-brightness orbits,
+recomputed around that new anchor. Switch between glowing comet trails, clean solid lines, and complete, full-brightness orbits, stretch the trail history from half to ten times its default span,
 scrub the tempo from hours to years per second, and flip into a top-down Atlas that compresses
 distance so all eleven worlds fit in one composed view.
 
@@ -28,7 +28,10 @@ external fonts or images. Every world can be shown or hidden independently, incl
 *Always style: each world’s complete orbit is drawn as a closed, full-brightness loop around its parent, translated into the selected center’s frame. Here Earth is the center; no segment fades.*
 
 ![Solar Atlas — visible worlds filter](docs/screenshots/orbits-visible-worlds.png)
-*An Earth-centered view reduced to just Earth, Venus and Mars. The Worlds control hides each world’s marker, label and orbit; the center world stays visible.*
+*An Earth-centered view reduced to just Earth and Venus. The Worlds control hides each world’s marker, label and orbit; the center world stays visible.*
+
+![Solar Atlas — five times the default trail history](docs/screenshots/orbits-history-5x.png)
+*Five times the default history in an Earth-centered Fading view. The Span selector stretches the trail window, and Fading leaves a faint guide over the whole span so older positions remain visible.*
 
 ![Solar Atlas — Visible worlds dialog](docs/screenshots/visible-worlds-dialog.png)
 *The Worlds checklist. Show all, clear to the center, then tick the worlds you want to inspect.*
@@ -59,6 +62,7 @@ Node 18+ is recommended. There is no install step.
 | **Click a world or its label** | Centre the map on that world. |
 | **Orbit lines: Solid / Fading / Always** | Continuous hairlines, luminous comet-tail trails, or complete closed orbits at full brightness with no fading. Always shows each world’s full orbit around its parent, translated into the current center’s frame. |
 | **Visible worlds** | Open **Worlds** beside Orbit lines to show or hide any world’s marker, label and orbit. Use **Center only** to clear the field, then tick the worlds you want. The center world is always visible. |
+| **Span** beside Orbit lines | Stretch or shorten the Solid/Fading history from 0.5× to 10× its default window. Longer spans keep older positions available; Fading adds a faint guide across the whole window so its oldest end does not disappear. |
 | **Orbits / Atlas** | Tilted true-scale view, or the top-down radially compressed whole-system map. |
 | **Drag** | Pan the map. |
 | **Shift + drag** | Tilt and rotate the orbit view (locked in Atlas). |
@@ -71,7 +75,7 @@ Node 18+ is recommended. There is no install step.
 
 Keyboard: `Space` play/pause · `F` fit · `A` toggle Atlas · `V` visible worlds · `R` reset · `1`–`5` hour/day/week/month/year per second · `+`/`-` zoom · arrows pan · `Shift`+arrows tilt · `?` or `H` help · `Esc` close.
 
-The URL records `center`, `mode`, `trail`, `labels`, and hidden worlds (`hide=mercury,jupiter`), so any view can be shared. Add
+The URL records `center`, `mode`, `trail`, `span`, `labels`, and hidden worlds (`hide=mercury,jupiter`), so any view can be shared. Add
 `date=2025-01-01T00:00:00Z` or `paused=1` for a fixed scene.
 
 ## Orbit model
@@ -115,7 +119,7 @@ src/js/ui.js                DOM controller, center picker, transport, modal
 src/js/main.js              application state, time engine, interactions, RAF loop
 scripts/serve.mjs           zero-dependency local static server
 scripts/build-single-file.mjs   dependency-free mini-bundler for dist/solar-atlas.html
-tests/                      43 science, geometry, and camera tests
+tests/                      45 science, geometry, and camera tests
 test/fixtures/              JPL Horizons reference vectors
 CONTRACT.md                 internal engineering contract and module interfaces
 ```

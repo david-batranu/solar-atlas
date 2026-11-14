@@ -4009,6 +4009,102 @@ body.reduced-motion .timebar__date .eyebrow::before {
   background: rgba(232, 189, 116, 0.06);
 }
 
+/* Trail history selector ---------------------------------------------------- */
+
+.trail-span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.trail-span[hidden] {
+  display: none;
+}
+
+.trail-span__label {
+  white-space: nowrap;
+}
+
+.trail-span__select {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 28px;
+  padding: 3px 21px 3px 7px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background-color: rgba(3, 7, 13, 0.34);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='m1 1 4 4 4-4' fill='none' stroke='%23a8b5c6' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 9px 6px;
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    background-color var(--dur-fast) var(--ease);
+}
+
+.trail-span__select:hover {
+  border-color: var(--line-strong);
+  background-color: rgba(232, 189, 116, 0.075);
+  color: var(--ink);
+}
+
+.trail-span__select:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.trail-span.is-custom .trail-span__select {
+  border-color: rgba(232, 189, 116, 0.35);
+  color: var(--brass);
+}
+
+@media (pointer: coarse) {
+  .trail-span__select {
+    min-height: 34px;
+    padding-block: 5px;
+  }
+}
+
+@media (max-height: 640px) and (min-width: 761px) {
+  .trail-span__label {
+    display: none;
+  }
+
+  .trail-span__select {
+    min-height: 26px;
+    padding-block: 2px;
+  }
+}
+
+@media (pointer: coarse) and (min-width: 761px) and (max-height: 640px) {
+  .trail-span__select {
+    min-height: 32px;
+    padding-block: 4px;
+  }
+}
+
+
+@media (max-width: 360px) {
+  .trail-span__label {
+    display: none;
+  }
+}
+
 </style>
 </head>
 <body class="is-loading">
@@ -4112,7 +4208,16 @@ body.reduced-motion .timebar__date .eyebrow::before {
       <div class="control__head">
         <span class="eyebrow">Orbit lines</span>
         <span class="control__head-right">
-          <span class="micro" id="trail-hint">glowing trails</span>
+          <label class="trail-span" id="trail-span-control" title="How much past orbit history Solid and Fading draw. Longer spans keep older positions visible.">
+            <span class="trail-span__label">Span</span>
+            <select class="trail-span__select" id="trail-span" aria-label="Orbit history span for Solid and Fading">
+              <option value="0.5">0.5×</option>
+              <option value="1" selected>1×</option>
+              <option value="2">2×</option>
+              <option value="5">5×</option>
+              <option value="10">10×</option>
+            </select>
+          </label>
           <button class="worlds-open" type="button" id="worlds-open" aria-haspopup="dialog" aria-controls="worlds-dialog" aria-expanded="false" title="Show or hide worlds and their orbits">
             <svg viewBox="0 0 18 18" fill="none" aria-hidden="true">
               <path d="M2.2 9c2.1-3.15 4.4-4.7 6.8-4.7s4.7 1.55 6.8 4.7c-2.1 3.15-4.4 4.7-6.8 4.7S4.3 12.15 2.2 9Z" stroke="currentColor" stroke-width="1.2"/>
@@ -4286,6 +4391,10 @@ body.reduced-motion .timebar__date .eyebrow::before {
         <div class="help-row">
           <span class="shortcut">Worlds</span>
           <p>Use <strong>Worlds</strong> beside Orbit lines to show or hide markers, labels and orbit lines. The center world always stays visible. Press <kbd>V</kbd> to open it.</p>
+        </div>
+        <div class="help-row">
+          <span class="shortcut">Span</span>
+          <p>The <strong>Span</strong> selector beside Orbit lines sets how much history Solid and Fading draw, from 0.5× to 10×. Longer spans keep older positions available; Fading leaves a faint guide across the full span.</p>
         </div>
         <div class="help-row">
           <span class="shortcut">Esc</span>
@@ -5571,6 +5680,9 @@ const MIN_TRACE_WINDOW_DAYS = 120;
 /** Longest generic planet-centric trace window: 2.5 synodic periods or this. */
 const MAX_TRACE_WINDOW_DAYS = 40 * DAYS_PER_YEAR;
 
+/** Hard ceiling for user-extended history, unless one base orbit is longer. */
+const MAX_TRAIL_HISTORY_DAYS = 100 * DAYS_PER_YEAR;
+
 /** A local lunar trail covers a little over two sidereal months. */
 const LUNAR_TRAIL_ORBITS = 2.2;
 
@@ -5675,54 +5787,63 @@ function displayPosition(p, blend) {
  *    (`yearDays`), clamped to [120 days, 40 years]. Using `yearDays` rather
  *    than a moon's `orbitDays` is essential for correct geocentric rosettes.
  *
- * Missing/null/invalid period fields are handled defensively: a usable value
- * is chosen when possible and the generic fallback is always finite and
- * positive.
+ * The optional `span` multiplier stretches (or shortens) this base window for
+ * the user-facing history control. The result is capped at 100 years unless a
+ * single base orbit is already longer; an outer planet's full orbit is never
+ * truncated to the generic cap. Missing/null/invalid period fields are handled
+ * defensively: a usable value is chosen when possible and the fallback is
+ * always finite and positive.
  *
  * @param {object} target BODIES-shaped target.
  * @param {object} center BODIES-shaped centre.
+ * @param {number} [span=1] History multiplier, clamped to [0.5, 10].
  * @returns {number} Window length in days (> 0, finite).
  * @throws {TypeError} If target or center is not an object.
  */
-function getTraceWindowDays(target, center) {
+function getTraceWindowDays(target, center, span = 1) {
   if (!isObject(target) || !isObject(center)) {
     throw new TypeError(
       'getTraceWindowDays: target and center must be BODIES-shaped objects'
     );
   }
 
+  let baseWindow;
+
   // 1. Apparent solar revolution. Must win over "centre orbits target" for a
   //    Moon-centric view: the Sun still circles once per terrestrial year.
   if (target.id === 'sun') {
-    return positiveDays(center.yearDays) ?? DEFAULT_WINDOW_DAYS;
-  }
-
-  // 2. The target physically orbits the centre: exactly one sidereal orbit.
-  if (target.parentId != null && target.parentId === center.id) {
+    baseWindow = positiveDays(center.yearDays) ?? DEFAULT_WINDOW_DAYS;
+  } else if (target.parentId != null && target.parentId === center.id) {
+    // 2. The target physically orbits the centre: exactly one sidereal orbit.
     const period = positiveDays(target.orbitDays);
-    if (period !== null) return period;
-  }
-
-  // 3. The centre physically orbits the target (e.g. Earth as seen from the
-  //    Moon): the centre's own sidereal period.
-  if (center.parentId != null && center.parentId === target.id) {
+    baseWindow = period ?? DEFAULT_WINDOW_DAYS;
+  } else if (center.parentId != null && center.parentId === target.id) {
+    // 3. The centre physically orbits the target (e.g. Earth as seen from the
+    //    Moon): the centre's own sidereal period.
     const period = positiveDays(center.orbitDays);
-    if (period !== null) return period;
-  }
-
-  // 4. A local lunar trail for any non-geocentric view of the Moon.
-  if (target.id === 'moon' && center.id !== 'earth') {
+    baseWindow = period ?? DEFAULT_WINDOW_DAYS;
+  } else if (target.id === 'moon' && center.id !== 'earth') {
+    // 4. A local lunar trail for any non-geocentric view of the Moon.
     const lunarPeriod = positiveDays(target.orbitDays) ?? DEFAULT_LUNAR_ORBIT_DAYS;
-    return LUNAR_TRAIL_ORBITS * lunarPeriod;
+    baseWindow = LUNAR_TRAIL_ORBITS * lunarPeriod;
+  } else {
+    // 5. Synodic rosette window, always from heliocentric years.
+    const synodicDays = synodicPeriodDays(target.yearDays, center.yearDays);
+    baseWindow = clampNumber(
+      SYNODIC_WINDOW_FACTOR * synodicDays,
+      MIN_TRACE_WINDOW_DAYS,
+      MAX_TRACE_WINDOW_DAYS
+    );
   }
 
-  // 5. Synodic rosette window, always from heliocentric years.
-  const synodicDays = synodicPeriodDays(target.yearDays, center.yearDays);
-  return clampNumber(
-    SYNODIC_WINDOW_FACTOR * synodicDays,
-    MIN_TRACE_WINDOW_DAYS,
-    MAX_TRACE_WINDOW_DAYS
-  );
+  const multiplier =
+    typeof span === 'number' && Number.isFinite(span) && span > 0
+      ? clampNumber(span, 0.5, 10)
+      : 1;
+  // A full outer-planet orbit is already enormous; never shorten it to the
+  // generic history ceiling.
+  const ceiling = Math.max(baseWindow, MAX_TRAIL_HISTORY_DAYS);
+  return Math.min(baseWindow * multiplier, ceiling);
 }
 
 /**
@@ -5753,6 +5874,8 @@ function getTraceWindowDays(target, center) {
  *   Optional direct provider for a single body. When supplied it is used
  *   instead of `getPositions`, so a trace only computes its own target and
  *   center rather than every body in the system.
+ * @param {number} [options.span=1] History multiplier for the trace window,
+ *   clamped to [0.5, 10].
  * @param {number} [options.samples=480] Samples per trace (normalised to an
  *   integer in [2, 20 000]).
  * @returns {Array<{
@@ -5772,6 +5895,7 @@ function buildTraces({
   bodies,
   getPositions,
   getPosition = null,
+  span = 1,
   samples = DEFAULT_SAMPLE_COUNT,
 } = {}) {
   if (typeof getPositions !== 'function') {
@@ -5806,6 +5930,7 @@ function buildTraces({
       target,
       getPositions,
       getPosition: typeof getPosition === 'function' ? getPosition : null,
+      span,
       sampleCount,
     });
     if (trace !== null) traces.push(trace);
@@ -6087,9 +6212,10 @@ function sampleTrace({
   target,
   getPositions,
   getPosition,
+  span,
   sampleCount,
 }) {
-  const windowDays = safeWindowDays(getTraceWindowDays(target, center));
+  const windowDays = safeWindowDays(getTraceWindowDays(target, center, span));
   const startJd = jd - windowDays;
   const stepDays = windowDays / (sampleCount - 1);
   const points = new Array(sampleCount);
@@ -7332,16 +7458,15 @@ function createRenderer(canvas) {
         ctx.stroke();
       }
     } else {
-      // For closed or apparent loops, a whisper of the whole path keeps the
-      // scale legible while the bright head fades back into the sky.
-      if (isLoop) {
-        ctx.globalAlpha = 0.055;
-        ctx.lineWidth = 0.85;
-        ctx.beginPath();
-        ctx.moveTo(points[0].x, points[0].y);
-        for (let i = 1; i < n; i += 1) ctx.lineTo(points[i].x, points[i].y);
-        ctx.stroke();
-      }
+      // Keep a whisper of the whole selected history visible. This matters
+      // most for long geocentric trails, where the comet head fades to zero at
+      // the oldest end and would otherwise make older positions disappear.
+      ctx.globalAlpha = isLoop ? 0.055 : 0.045;
+      ctx.lineWidth = 0.85;
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < n; i += 1) ctx.lineTo(points[i].x, points[i].y);
+      ctx.stroke();
 
       const buckets = Math.min(34, Math.max(14, Math.floor(n / 9)));
       for (let b = 0; b < buckets; b += 1) {
@@ -7361,7 +7486,9 @@ function createRenderer(canvas) {
         // A gentle gamma lift keeps most of the orbit legible while the tail
         // still dissolves into the sky.
         const fade = Math.pow(rawFade, 0.62);
-        ctx.globalAlpha = Math.max(0.01, fade * (hovered ? 1.08 : 0.84));
+        // Keep the oldest buckets faintly present instead of clipping them
+        // to the background; long-history views need that continuity.
+        ctx.globalAlpha = Math.max(0.03, fade * (hovered ? 1.08 : 0.84));
         ctx.lineWidth = (hovered ? 1.55 : 1.08) + t * 0.26;
         ctx.stroke();
       }
@@ -7753,7 +7880,8 @@ function createUI({ actions }) {
     centerMenu: $('#center-menu'),
     centerGroups: $('#center-menu-groups'),
     trailSwitch: $('#trail-switch'),
-    trailHint: $('#trail-hint'),
+    trailSpanControl: $('#trail-span-control'),
+    trailSpan: $('#trail-span'),
     worldsOpen: $('#worlds-open'),
     worldsCount: $('#worlds-count'),
     worldsDialog: $('#worlds-dialog'),
@@ -8233,11 +8361,13 @@ function createUI({ actions }) {
       button.classList.toggle('is-active', active);
       button.setAttribute('aria-pressed', active ? 'true' : 'false');
     }
-    refs.trailHint.textContent = state.trailStyle === 'fading'
-      ? 'comet tails'
-      : state.trailStyle === 'always'
-        ? 'full orbits'
-        : 'continuous';
+    const always = state.trailStyle === 'always';
+    refs.trailSpanControl.hidden = always;
+    refs.trailSpan.value = String(state.trailSpan);
+    refs.trailSpanControl.classList.toggle('is-custom', !always && state.trailSpan !== 1);
+    refs.trailSpanControl.title = always
+      ? 'Always shows complete orbits.'
+      : `${state.trailSpan}× history for Solid and Fading trails.`;
 
     // Labels.
     refs.labels.checked = Boolean(state.labels);
@@ -8349,6 +8479,10 @@ function createUI({ actions }) {
     for (const button of refs.trailButtons) {
       button.addEventListener('click', () => actions.setTrailStyle(button.dataset.trail));
     }
+
+    refs.trailSpan.addEventListener('change', () => {
+      actions.setTrailSpan(Number(refs.trailSpan.value));
+    });
 
     refs.worldsOpen.addEventListener('click', () => openWorldsDialog());
     refs.worldsOpen.addEventListener('keydown', (event) => {
@@ -8476,6 +8610,8 @@ const ATLAS_YAW = 0;
 const ATLAS_ELEVATION = 90 * DEG;
 const TRACE_SAMPLES = 520;
 const COMPLETE_TRACE_SAMPLES = 560;
+const MAX_TRACE_SAMPLES = 900;
+const TRAIL_SPAN_OPTIONS = [0.5, 1, 2, 5, 10];
 const TRACE_REBUILD_MS = 150;
 const MAX_SCALE = 180000;
 const MIN_SCALE_FLOOR = 0.04;
@@ -8493,6 +8629,7 @@ const state = {
   centerId: DEFAULT_CENTER,
   mode: DEFAULT_MODE,
   trailStyle: DEFAULT_TRAIL,
+  trailSpan: 1,
   labels: true,
   playing: true,
   direction: 1,
@@ -8548,6 +8685,7 @@ const actions = {
   setCenter: (id) => setCenter(id),
   setMode: (mode) => setMode(mode),
   setTrailStyle: (style) => setTrailStyle(style),
+  setTrailSpan: (span) => setTrailSpan(span),
   setLabels: (labels) => setLabels(labels),
   setVisibility: (id, visible) => setVisibility(id, visible),
   setAllVisible: (visible) => setAllVisible(visible),
@@ -8581,6 +8719,9 @@ function readInitialUrlState() {
 
   const trail = params.get('trail');
   if (trail === 'solid' || trail === 'fading' || trail === 'always') state.trailStyle = trail;
+
+  const span = Number(params.get('span'));
+  if (TRAIL_SPAN_OPTIONS.includes(span)) state.trailSpan = span;
 
   const hide = params.get('hide');
   if (hide) {
@@ -8621,6 +8762,8 @@ function writeUrlState() {
     url.searchParams.set('mode', state.mode);
     url.searchParams.set('trail', state.trailStyle);
     url.searchParams.set('labels', state.labels ? '1' : '0');
+    if (state.trailSpan !== 1) url.searchParams.set('span', String(state.trailSpan));
+    else url.searchParams.delete('span');
     const hidden = BODIES
       .filter((body) => body.id !== state.centerId && state.hiddenBodies.has(body.id))
       .map((body) => body.id);
@@ -8992,13 +9135,20 @@ function rebuildTraces(now = performance.now(), force = false) {
   try {
     const completeOrbits = state.trailStyle === 'always';
     const build = completeOrbits ? buildCompleteOrbitTraces : buildTraces;
+    const samples = completeOrbits
+      ? COMPLETE_TRACE_SAMPLES
+      : Math.min(
+        MAX_TRACE_SAMPLES,
+        Math.round(TRACE_SAMPLES * Math.sqrt(Math.max(1, state.trailSpan))),
+      );
     traces = build({
       jd: state.jd,
       centerId: state.centerId,
       bodies: BODIES,
       getPositions: astronomy.getPositions,
       getPosition: astronomy.getHeliocentricPosition,
-      samples: completeOrbits ? COMPLETE_TRACE_SAMPLES : TRACE_SAMPLES,
+      span: state.trailSpan,
+      samples,
     });
     tracesJd = state.jd;
     tracesBuiltAt = now;
@@ -9113,6 +9263,19 @@ function setTrailStyle(style) {
   writeUrlState();
 }
 
+function setTrailSpan(span) {
+  const next = Number(span);
+  if (!TRAIL_SPAN_OPTIONS.includes(next) || next === state.trailSpan) return;
+  state.trailSpan = next;
+  traces = null;
+  tracesJd = Number.NaN;
+  rebuildTraces(performance.now(), true);
+  recomputeScaleLimits();
+  syncUI();
+  writeUrlState();
+  ui.announce(`Orbit history set to ${next}× the standard span.`);
+}
+
 function setLabels(labels) {
   state.labels = Boolean(labels);
   syncUI();
@@ -9206,6 +9369,7 @@ function resetView() {
   state.centerId = 'sun';
   state.mode = 'realistic';
   state.trailStyle = 'fading';
+  state.trailSpan = 1;
   state.labels = true;
   state.hiddenBodies.clear();
   savedRealisticCamera = null;
@@ -9823,6 +9987,7 @@ function boot() {
       centerId: state.centerId,
       mode: state.mode,
       trailStyle: state.trailStyle,
+      trailSpan: state.trailSpan,
       labels: state.labels,
       playing: state.playing,
       direction: state.direction,
@@ -9842,6 +10007,7 @@ function boot() {
     setCenter: (id) => setCenter(id),
     setMode: (mode) => setMode(mode),
     setTrailStyle: (style) => setTrailStyle(style),
+    setTrailSpan: (span) => setTrailSpan(span),
     setLabels: (labels) => setLabels(labels),
     setSpeed: (days) => setSpeed(days),
     setJd: (value) => {
@@ -9874,6 +10040,8 @@ function boot() {
     getSceneSummary: () => ({
       centerId: state.centerId,
       mode: state.mode,
+      trailStyle: state.trailStyle,
+      trailSpan: state.trailSpan,
       atlasBlend: atlas.blend,
       camera: { ...camera },
       layout: renderer.getLastLayout(),

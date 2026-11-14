@@ -155,7 +155,8 @@ export function createUI({ actions }) {
     centerMenu: $('#center-menu'),
     centerGroups: $('#center-menu-groups'),
     trailSwitch: $('#trail-switch'),
-    trailHint: $('#trail-hint'),
+    trailSpanControl: $('#trail-span-control'),
+    trailSpan: $('#trail-span'),
     worldsOpen: $('#worlds-open'),
     worldsCount: $('#worlds-count'),
     worldsDialog: $('#worlds-dialog'),
@@ -635,11 +636,13 @@ export function createUI({ actions }) {
       button.classList.toggle('is-active', active);
       button.setAttribute('aria-pressed', active ? 'true' : 'false');
     }
-    refs.trailHint.textContent = state.trailStyle === 'fading'
-      ? 'comet tails'
-      : state.trailStyle === 'always'
-        ? 'full orbits'
-        : 'continuous';
+    const always = state.trailStyle === 'always';
+    refs.trailSpanControl.hidden = always;
+    refs.trailSpan.value = String(state.trailSpan);
+    refs.trailSpanControl.classList.toggle('is-custom', !always && state.trailSpan !== 1);
+    refs.trailSpanControl.title = always
+      ? 'Always shows complete orbits.'
+      : `${state.trailSpan}× history for Solid and Fading trails.`;
 
     // Labels.
     refs.labels.checked = Boolean(state.labels);
@@ -751,6 +754,10 @@ export function createUI({ actions }) {
     for (const button of refs.trailButtons) {
       button.addEventListener('click', () => actions.setTrailStyle(button.dataset.trail));
     }
+
+    refs.trailSpan.addEventListener('change', () => {
+      actions.setTrailSpan(Number(refs.trailSpan.value));
+    });
 
     refs.worldsOpen.addEventListener('click', () => openWorldsDialog());
     refs.worldsOpen.addEventListener('keydown', (event) => {

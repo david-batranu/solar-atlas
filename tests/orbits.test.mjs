@@ -1230,3 +1230,54 @@ test('buildCompleteOrbitTraces: heliocentric ellipses and validation', () => {
     /unknown centerId/
   );
 });
+
+
+test('getTraceWindowDays: history span multiplies base windows and respects caps', () => {
+  const earth = BY_ID.earth;
+  const sun = BY_ID.sun;
+  const pluto = BY_ID.pluto;
+
+  assert.equal(getTraceWindowDays(earth, sun, 1), 365.256);
+  assertClose(getTraceWindowDays(earth, sun, 2), 365.256 * 2, 1e-9);
+  assertClose(getTraceWindowDays(earth, sun, 0.5), 365.256 * 0.5, 1e-9);
+  assertClose(getTraceWindowDays(earth, sun, 10), 365.256 * 10, 1e-9);
+
+  // A single outer-planet orbit is already longer than the generic 100-year
+  // history ceiling and must never be shortened.
+  assert.equal(getTraceWindowDays(pluto, sun, 10), 90560);
+
+  // Generic windows can exceed their 40-year base, but stop at 100 years.
+  const slowA = makeBody({ id: 'slow-a', yearDays: 1000, parentId: null });
+  const slowB = makeBody({ id: 'slow-b', yearDays: 1000.01, parentId: null });
+  const slowBase = getTraceWindowDays(slowA, slowB);
+  assertClose(getTraceWindowDays(slowA, slowB, 2), slowBase * 2, 1e-9);
+  assertClose(getTraceWindowDays(slowA, slowB, 10), 100 * 365.25, 1e-9);
+
+  // Invalid or out-of-range multipliers fall back to the documented clamp.
+  assert.equal(getTraceWindowDays(earth, sun, Number.NaN), 365.256);
+  assert.equal(getTraceWindowDays(earth, sun, 0), 365.256);
+  assertClose(getTraceWindowDays(earth, sun, 20), 365.256 * 10, 1e-9);
+});
+
+test('buildTraces: history span changes the sampled window', () => {
+  const jd = J2000_JD + 1200;
+  const sun = BY_ID.sun;
+  const traces = buildTraces({
+    jd,
+    centerId: 'sun',
+    bodies: BODIES,
+    getPositions: fakeSolarSystemPositions,
+    span: 2,
+    samples: 12,
+  });
+  const earth = traces.find((trace) => trace.bodyId === 'earth');
+  assert.ok(earth);
+  assertClose(earth.windowDays, getTraceWindowDays(BY_ID.earth, sun, 2), 1e-12);
+  assert.equal(earth.points.length, 12);
+  assertPointClose(
+    earth.points[earth.points.length - 1],
+    fakeSolarSystemPositions(jd).earth,
+    1e-12,
+    'Earth head position',
+  );
+});

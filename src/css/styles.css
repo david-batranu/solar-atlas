@@ -3997,3 +3997,99 @@ body.reduced-motion .timebar__date .eyebrow::before {
 .world-option.is-center:hover {
   background: rgba(232, 189, 116, 0.06);
 }
+
+/* Trail history selector ---------------------------------------------------- */
+
+.trail-span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.trail-span[hidden] {
+  display: none;
+}
+
+.trail-span__label {
+  white-space: nowrap;
+}
+
+.trail-span__select {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 28px;
+  padding: 3px 21px 3px 7px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background-color: rgba(3, 7, 13, 0.34);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='m1 1 4 4 4-4' fill='none' stroke='%23a8b5c6' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 9px 6px;
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    background-color var(--dur-fast) var(--ease);
+}
+
+.trail-span__select:hover {
+  border-color: var(--line-strong);
+  background-color: rgba(232, 189, 116, 0.075);
+  color: var(--ink);
+}
+
+.trail-span__select:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.trail-span.is-custom .trail-span__select {
+  border-color: rgba(232, 189, 116, 0.35);
+  color: var(--brass);
+}
+
+@media (pointer: coarse) {
+  .trail-span__select {
+    min-height: 34px;
+    padding-block: 5px;
+  }
+}
+
+@media (max-height: 640px) and (min-width: 761px) {
+  .trail-span__label {
+    display: none;
+  }
+
+  .trail-span__select {
+    min-height: 26px;
+    padding-block: 2px;
+  }
+}
+
+@media (pointer: coarse) and (min-width: 761px) and (max-height: 640px) {
+  .trail-span__select {
+    min-height: 32px;
+    padding-block: 4px;
+  }
+}
+
+
+@media (max-width: 360px) {
+  .trail-span__label {
+    display: none;
+  }
+}

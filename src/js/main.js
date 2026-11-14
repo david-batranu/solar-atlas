@@ -39,6 +39,8 @@ const ATLAS_YAW = 0;
 const ATLAS_ELEVATION = 90 * DEG;
 const TRACE_SAMPLES = 520;
 const COMPLETE_TRACE_SAMPLES = 560;
+const MAX_TRACE_SAMPLES = 900;
+const TRAIL_SPAN_OPTIONS = [0.5, 1, 2, 5, 10];
 const TRACE_REBUILD_MS = 150;
 const MAX_SCALE = 180000;
 const MIN_SCALE_FLOOR = 0.04;
@@ -56,6 +58,7 @@ const state = {
   centerId: DEFAULT_CENTER,
   mode: DEFAULT_MODE,
   trailStyle: DEFAULT_TRAIL,
+  trailSpan: 1,
   labels: true,
   playing: true,
   direction: 1,
@@ -111,6 +114,7 @@ const actions = {
   setCenter: (id) => setCenter(id),
   setMode: (mode) => setMode(mode),
   setTrailStyle: (style) => setTrailStyle(style),
+  setTrailSpan: (span) => setTrailSpan(span),
   setLabels: (labels) => setLabels(labels),
   setVisibility: (id, visible) => setVisibility(id, visible),
   setAllVisible: (visible) => setAllVisible(visible),
@@ -144,6 +148,9 @@ function readInitialUrlState() {
 
   const trail = params.get('trail');
   if (trail === 'solid' || trail === 'fading' || trail === 'always') state.trailStyle = trail;
+
+  const span = Number(params.get('span'));
+  if (TRAIL_SPAN_OPTIONS.includes(span)) state.trailSpan = span;
 
   const hide = params.get('hide');
   if (hide) {
@@ -184,6 +191,8 @@ function writeUrlState() {
     url.searchParams.set('mode', state.mode);
     url.searchParams.set('trail', state.trailStyle);
     url.searchParams.set('labels', state.labels ? '1' : '0');
+    if (state.trailSpan !== 1) url.searchParams.set('span', String(state.trailSpan));
+    else url.searchParams.delete('span');
     const hidden = BODIES
       .filter((body) => body.id !== state.centerId && state.hiddenBodies.has(body.id))
       .map((body) => body.id);
@@ -555,13 +564,20 @@ function rebuildTraces(now = performance.now(), force = false) {
   try {
     const completeOrbits = state.trailStyle === 'always';
     const build = completeOrbits ? buildCompleteOrbitTraces : buildTraces;
+    const samples = completeOrbits
+      ? COMPLETE_TRACE_SAMPLES
+      : Math.min(
+        MAX_TRACE_SAMPLES,
+        Math.round(TRACE_SAMPLES * Math.sqrt(Math.max(1, state.trailSpan))),
+      );
     traces = build({
       jd: state.jd,
       centerId: state.centerId,
       bodies: BODIES,
       getPositions: astronomy.getPositions,
       getPosition: astronomy.getHeliocentricPosition,
-      samples: completeOrbits ? COMPLETE_TRACE_SAMPLES : TRACE_SAMPLES,
+      span: state.trailSpan,
+      samples,
     });
     tracesJd = state.jd;
     tracesBuiltAt = now;
@@ -676,6 +692,19 @@ function setTrailStyle(style) {
   writeUrlState();
 }
 
+function setTrailSpan(span) {
+  const next = Number(span);
+  if (!TRAIL_SPAN_OPTIONS.includes(next) || next === state.trailSpan) return;
+  state.trailSpan = next;
+  traces = null;
+  tracesJd = Number.NaN;
+  rebuildTraces(performance.now(), true);
+  recomputeScaleLimits();
+  syncUI();
+  writeUrlState();
+  ui.announce(`Orbit history set to ${next}× the standard span.`);
+}
+
 function setLabels(labels) {
   state.labels = Boolean(labels);
   syncUI();
@@ -769,6 +798,7 @@ function resetView() {
   state.centerId = 'sun';
   state.mode = 'realistic';
   state.trailStyle = 'fading';
+  state.trailSpan = 1;
   state.labels = true;
   state.hiddenBodies.clear();
   savedRealisticCamera = null;
@@ -1386,6 +1416,7 @@ function boot() {
       centerId: state.centerId,
       mode: state.mode,
       trailStyle: state.trailStyle,
+      trailSpan: state.trailSpan,
       labels: state.labels,
       playing: state.playing,
       direction: state.direction,
@@ -1405,6 +1436,7 @@ function boot() {
     setCenter: (id) => setCenter(id),
     setMode: (mode) => setMode(mode),
     setTrailStyle: (style) => setTrailStyle(style),
+    setTrailSpan: (span) => setTrailSpan(span),
     setLabels: (labels) => setLabels(labels),
     setSpeed: (days) => setSpeed(days),
     setJd: (value) => {
@@ -1437,6 +1469,8 @@ function boot() {
     getSceneSummary: () => ({
       centerId: state.centerId,
       mode: state.mode,
+      trailStyle: state.trailStyle,
+      trailSpan: state.trailSpan,
       atlasBlend: atlas.blend,
       camera: { ...camera },
       layout: renderer.getLastLayout(),

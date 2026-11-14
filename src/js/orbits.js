@@ -41,6 +41,9 @@ const MIN_TRACE_WINDOW_DAYS = 120;
 /** Longest generic planet-centric trace window: 2.5 synodic periods or this. */
 const MAX_TRACE_WINDOW_DAYS = 40 * DAYS_PER_YEAR;
 
+/** Hard ceiling for user-extended history, unless one base orbit is longer. */
+const MAX_TRAIL_HISTORY_DAYS = 100 * DAYS_PER_YEAR;
+
 /** A local lunar trail covers a little over two sidereal months. */
 const LUNAR_TRAIL_ORBITS = 2.2;
 
@@ -145,54 +148,63 @@ export function displayPosition(p, blend) {
  *    (`yearDays`), clamped to [120 days, 40 years]. Using `yearDays` rather
  *    than a moon's `orbitDays` is essential for correct geocentric rosettes.
  *
- * Missing/null/invalid period fields are handled defensively: a usable value
- * is chosen when possible and the generic fallback is always finite and
- * positive.
+ * The optional `span` multiplier stretches (or shortens) this base window for
+ * the user-facing history control. The result is capped at 100 years unless a
+ * single base orbit is already longer; an outer planet's full orbit is never
+ * truncated to the generic cap. Missing/null/invalid period fields are handled
+ * defensively: a usable value is chosen when possible and the fallback is
+ * always finite and positive.
  *
  * @param {object} target BODIES-shaped target.
  * @param {object} center BODIES-shaped centre.
+ * @param {number} [span=1] History multiplier, clamped to [0.5, 10].
  * @returns {number} Window length in days (> 0, finite).
  * @throws {TypeError} If target or center is not an object.
  */
-export function getTraceWindowDays(target, center) {
+export function getTraceWindowDays(target, center, span = 1) {
   if (!isObject(target) || !isObject(center)) {
     throw new TypeError(
       'getTraceWindowDays: target and center must be BODIES-shaped objects'
     );
   }
 
+  let baseWindow;
+
   // 1. Apparent solar revolution. Must win over "centre orbits target" for a
   //    Moon-centric view: the Sun still circles once per terrestrial year.
   if (target.id === 'sun') {
-    return positiveDays(center.yearDays) ?? DEFAULT_WINDOW_DAYS;
-  }
-
-  // 2. The target physically orbits the centre: exactly one sidereal orbit.
-  if (target.parentId != null && target.parentId === center.id) {
+    baseWindow = positiveDays(center.yearDays) ?? DEFAULT_WINDOW_DAYS;
+  } else if (target.parentId != null && target.parentId === center.id) {
+    // 2. The target physically orbits the centre: exactly one sidereal orbit.
     const period = positiveDays(target.orbitDays);
-    if (period !== null) return period;
-  }
-
-  // 3. The centre physically orbits the target (e.g. Earth as seen from the
-  //    Moon): the centre's own sidereal period.
-  if (center.parentId != null && center.parentId === target.id) {
+    baseWindow = period ?? DEFAULT_WINDOW_DAYS;
+  } else if (center.parentId != null && center.parentId === target.id) {
+    // 3. The centre physically orbits the target (e.g. Earth as seen from the
+    //    Moon): the centre's own sidereal period.
     const period = positiveDays(center.orbitDays);
-    if (period !== null) return period;
-  }
-
-  // 4. A local lunar trail for any non-geocentric view of the Moon.
-  if (target.id === 'moon' && center.id !== 'earth') {
+    baseWindow = period ?? DEFAULT_WINDOW_DAYS;
+  } else if (target.id === 'moon' && center.id !== 'earth') {
+    // 4. A local lunar trail for any non-geocentric view of the Moon.
     const lunarPeriod = positiveDays(target.orbitDays) ?? DEFAULT_LUNAR_ORBIT_DAYS;
-    return LUNAR_TRAIL_ORBITS * lunarPeriod;
+    baseWindow = LUNAR_TRAIL_ORBITS * lunarPeriod;
+  } else {
+    // 5. Synodic rosette window, always from heliocentric years.
+    const synodicDays = synodicPeriodDays(target.yearDays, center.yearDays);
+    baseWindow = clampNumber(
+      SYNODIC_WINDOW_FACTOR * synodicDays,
+      MIN_TRACE_WINDOW_DAYS,
+      MAX_TRACE_WINDOW_DAYS
+    );
   }
 
-  // 5. Synodic rosette window, always from heliocentric years.
-  const synodicDays = synodicPeriodDays(target.yearDays, center.yearDays);
-  return clampNumber(
-    SYNODIC_WINDOW_FACTOR * synodicDays,
-    MIN_TRACE_WINDOW_DAYS,
-    MAX_TRACE_WINDOW_DAYS
-  );
+  const multiplier =
+    typeof span === 'number' && Number.isFinite(span) && span > 0
+      ? clampNumber(span, 0.5, 10)
+      : 1;
+  // A full outer-planet orbit is already enormous; never shorten it to the
+  // generic history ceiling.
+  const ceiling = Math.max(baseWindow, MAX_TRAIL_HISTORY_DAYS);
+  return Math.min(baseWindow * multiplier, ceiling);
 }
 
 /**
@@ -223,6 +235,8 @@ export function getTraceWindowDays(target, center) {
  *   Optional direct provider for a single body. When supplied it is used
  *   instead of `getPositions`, so a trace only computes its own target and
  *   center rather than every body in the system.
+ * @param {number} [options.span=1] History multiplier for the trace window,
+ *   clamped to [0.5, 10].
  * @param {number} [options.samples=480] Samples per trace (normalised to an
  *   integer in [2, 20 000]).
  * @returns {Array<{
@@ -242,6 +256,7 @@ export function buildTraces({
   bodies,
   getPositions,
   getPosition = null,
+  span = 1,
   samples = DEFAULT_SAMPLE_COUNT,
 } = {}) {
   if (typeof getPositions !== 'function') {
@@ -276,6 +291,7 @@ export function buildTraces({
       target,
       getPositions,
       getPosition: typeof getPosition === 'function' ? getPosition : null,
+      span,
       sampleCount,
     });
     if (trace !== null) traces.push(trace);
@@ -557,9 +573,10 @@ function sampleTrace({
   target,
   getPositions,
   getPosition,
+  span,
   sampleCount,
 }) {
-  const windowDays = safeWindowDays(getTraceWindowDays(target, center));
+  const windowDays = safeWindowDays(getTraceWindowDays(target, center, span));
   const startJd = jd - windowDays;
   const stepDays = windowDays / (sampleCount - 1);
   const points = new Array(sampleCount);

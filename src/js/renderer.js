@@ -834,16 +834,15 @@ export function createRenderer(canvas) {
         ctx.stroke();
       }
     } else {
-      // For closed or apparent loops, a whisper of the whole path keeps the
-      // scale legible while the bright head fades back into the sky.
-      if (isLoop) {
-        ctx.globalAlpha = 0.055;
-        ctx.lineWidth = 0.85;
-        ctx.beginPath();
-        ctx.moveTo(points[0].x, points[0].y);
-        for (let i = 1; i < n; i += 1) ctx.lineTo(points[i].x, points[i].y);
-        ctx.stroke();
-      }
+      // Keep a whisper of the whole selected history visible. This matters
+      // most for long geocentric trails, where the comet head fades to zero at
+      // the oldest end and would otherwise make older positions disappear.
+      ctx.globalAlpha = isLoop ? 0.055 : 0.045;
+      ctx.lineWidth = 0.85;
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < n; i += 1) ctx.lineTo(points[i].x, points[i].y);
+      ctx.stroke();
 
       const buckets = Math.min(34, Math.max(14, Math.floor(n / 9)));
       for (let b = 0; b < buckets; b += 1) {
@@ -863,7 +862,9 @@ export function createRenderer(canvas) {
         // A gentle gamma lift keeps most of the orbit legible while the tail
         // still dissolves into the sky.
         const fade = Math.pow(rawFade, 0.62);
-        ctx.globalAlpha = Math.max(0.01, fade * (hovered ? 1.08 : 0.84));
+        // Keep the oldest buckets faintly present instead of clipping them
+        // to the background; long-history views need that continuity.
+        ctx.globalAlpha = Math.max(0.03, fade * (hovered ? 1.08 : 0.84));
         ctx.lineWidth = (hovered ? 1.55 : 1.08) + t * 0.26;
         ctx.stroke();
       }
