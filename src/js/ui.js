@@ -156,6 +156,14 @@ export function createUI({ actions }) {
     centerGroups: $('#center-menu-groups'),
     trailSwitch: $('#trail-switch'),
     trailHint: $('#trail-hint'),
+    worldsOpen: $('#worlds-open'),
+    worldsCount: $('#worlds-count'),
+    worldsDialog: $('#worlds-dialog'),
+    worldsClose: $('#worlds-close'),
+    worldsAll: $('#worlds-all'),
+    worldsCenterOnly: $('#worlds-center-only'),
+    worldsSummary: $('#worlds-summary'),
+    worldsOptions: $('#worlds-options'),
     labels: $('#toggle-labels'),
     resetView: $('#reset-view'),
     modeNote: $('#mode-note'),
@@ -190,7 +198,11 @@ export function createUI({ actions }) {
   let optionsById = new Map();
   let menuOpen = false;
   let helpOpen = false;
+  let worldsOpen = false;
   let lastFocus = null;
+  let worldsLastFocus = null;
+  const visibilityInputs = new Map();
+  const worldRows = new Map();
   let toastTimer = null;
   let toastHideTimer = null;
   let menuCloseTimer = null;
@@ -251,8 +263,92 @@ export function createUI({ actions }) {
     refs.centerGroups.replaceChildren(fragment);
   }
 
+  /* --------------------------------------------------------------- worlds */
+
+  function buildWorldsOptions() {
+    const fragment = document.createDocumentFragment();
+
+    for (const body of BODIES) {
+      const row = document.createElement('label');
+      row.className = 'world-option';
+      row.dataset.bodyId = body.id;
+      row.style.setProperty('--body-color', body.color);
+
+      const dot = document.createElement('span');
+      dot.className = 'world-option__dot';
+      dot.setAttribute('aria-hidden', 'true');
+
+      const text = document.createElement('span');
+      text.className = 'world-option__text';
+
+      const name = document.createElement('span');
+      name.className = 'world-option__name';
+      name.textContent = body.name;
+
+      const meta = document.createElement('span');
+      meta.className = 'world-option__meta';
+      meta.textContent = KIND_LABEL[body.kind] ?? body.kind;
+      text.append(name, meta);
+
+      const check = document.createElement('span');
+      check.className = 'world-option__check';
+
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = true;
+      input.addEventListener('change', () => {
+        actions.setVisibility(body.id, input.checked);
+      });
+
+      const box = document.createElement('span');
+      box.className = 'world-option__box';
+      box.setAttribute('aria-hidden', 'true');
+      check.append(input, box);
+
+      row.append(dot, text, check);
+      fragment.appendChild(row);
+      visibilityInputs.set(body.id, input);
+      worldRows.set(body.id, { row, meta, input });
+    }
+
+    refs.worldsOptions.replaceChildren(fragment);
+  }
+
+  function openWorldsDialog() {
+    if (worldsOpen || !refs.worldsDialog) return;
+    worldsLastFocus = refs.worldsOpen;
+    closeCenterMenu(true, true);
+    closeHelp(true);
+    hideToast();
+    worldsOpen = true;
+    refs.worldsOpen.setAttribute('aria-expanded', 'true');
+    refs.worldsDialog.showModal();
+    window.requestAnimationFrame(() => {
+      const first = refs.worldsOptions.querySelector('input:not(:disabled)');
+      first?.focus({ preventScroll: true });
+    });
+  }
+
+  function closeWorldsDialog() {
+    if (!worldsOpen) return;
+    worldsOpen = false;
+    refs.worldsOpen.setAttribute('aria-expanded', 'false');
+    if (refs.worldsDialog.open) refs.worldsDialog.close();
+  }
+
+  function onWorldsDialogClose() {
+    worldsOpen = false;
+    refs.worldsOpen.setAttribute('aria-expanded', 'false');
+    const target = worldsLastFocus && worldsLastFocus.isConnected
+      ? worldsLastFocus
+      : refs.worldsOpen;
+    worldsLastFocus = null;
+    try { target.focus({ preventScroll: true }); } catch { /* noop */ }
+  }
+
   function openCenterMenu() {
     if (menuOpen) return;
+    if (worldsOpen) closeWorldsDialog();
     hideToast();
     closeHelp(true);
     menuOpen = true;
@@ -365,6 +461,7 @@ export function createUI({ actions }) {
 
   function openHelp() {
     if (helpOpen) return;
+    if (worldsOpen) closeWorldsDialog();
     hideToast();
     closeCenterMenu(true, true);
     lastFocus = document.activeElement;
@@ -547,6 +644,44 @@ export function createUI({ actions }) {
     // Labels.
     refs.labels.checked = Boolean(state.labels);
 
+    // Visible worlds.
+    const hiddenSet = state.hiddenBodies instanceof Set
+      ? state.hiddenBodies
+      : new Set(Array.isArray(state.hiddenBodies) ? state.hiddenBodies : []);
+    const visibleBodies = BODIES.filter(
+      (body) => body.id === state.centerId || !hiddenSet.has(body.id),
+    );
+    const visibleCount = visibleBodies.length;
+    refs.worldsCount.textContent = String(visibleCount);
+    refs.worldsOpen.classList.toggle('is-filtered', visibleCount < BODIES.length);
+    refs.worldsOpen.setAttribute(
+      'aria-label',
+      `${visibleCount} of ${BODIES.length} worlds visible. Show or hide worlds.`,
+    );
+    refs.worldsOpen.title = visibleCount === BODIES.length
+      ? 'Show or hide worlds and their orbits'
+      : `${visibleCount} of ${BODIES.length} worlds visible — choose worlds`;
+    refs.worldsSummary.textContent = `${visibleCount} / ${BODIES.length} visible`;
+    refs.worldsAll.disabled = visibleCount === BODIES.length;
+    refs.worldsCenterOnly.disabled = visibleCount === 1;
+
+    for (const body of BODIES) {
+      const entry = worldRows.get(body.id);
+      if (!entry) continue;
+      const isCenter = body.id === state.centerId;
+      const isVisible = isCenter || !hiddenSet.has(body.id);
+      entry.input.checked = isVisible;
+      entry.input.disabled = isCenter;
+      entry.row.classList.toggle('is-center', isCenter);
+      entry.row.classList.toggle('is-hidden', !isVisible);
+      entry.meta.textContent = isCenter
+        ? 'Center'
+        : (KIND_LABEL[body.kind] ?? body.kind);
+      entry.row.title = isCenter
+        ? `${body.name} is the center and always stays visible.`
+        : `${isVisible ? 'Hide' : 'Show'} ${body.name}, its label and orbit.`;
+    }
+
     // Time transport.
     refs.play.dataset.playing = state.playing ? 'true' : 'false';
     refs.play.setAttribute('aria-label', state.playing ? 'Pause simulation' : 'Resume simulation');
@@ -559,7 +694,7 @@ export function createUI({ actions }) {
     if (refs.canvas) {
       refs.canvas.setAttribute(
         'aria-label',
-        `Orbital map of the Solar System centered on ${center.name}, shown in ${state.mode === 'atlas' ? 'top-down atlas' : 'tilted orbit'} view. ${state.playing ? 'Simulation running' : 'Simulation paused'} at ${formatSpeed(state.speedDaysPerSec)}.`,
+        `Orbital map of the Solar System centered on ${center.name}, shown in ${state.mode === 'atlas' ? 'top-down atlas' : 'tilted orbit'} view. ${state.playing ? 'Simulation running' : 'Simulation paused'} at ${formatSpeed(state.speedDaysPerSec)}. ${visibleCount} of ${BODIES.length} worlds visible.`,
       );
     }
   }
@@ -587,6 +722,7 @@ export function createUI({ actions }) {
 
   function bind() {
     buildCenterMenu();
+    buildWorldsOptions();
 
     refs.centerButton.addEventListener('click', () => {
       if (menuOpen) closeCenterMenu(true);
@@ -615,6 +751,21 @@ export function createUI({ actions }) {
     for (const button of refs.trailButtons) {
       button.addEventListener('click', () => actions.setTrailStyle(button.dataset.trail));
     }
+
+    refs.worldsOpen.addEventListener('click', () => openWorldsDialog());
+    refs.worldsOpen.addEventListener('keydown', (event) => {
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        openWorldsDialog();
+      }
+    });
+    refs.worldsClose.addEventListener('click', () => closeWorldsDialog());
+    refs.worldsAll.addEventListener('click', () => actions.setAllVisible(true));
+    refs.worldsCenterOnly.addEventListener('click', () => actions.setAllVisible(false));
+    refs.worldsDialog.addEventListener('close', onWorldsDialogClose);
+    refs.worldsDialog.addEventListener('click', (event) => {
+      if (event.target === refs.worldsDialog) closeWorldsDialog();
+    });
 
     refs.labels.addEventListener('change', () => actions.setLabels(refs.labels.checked));
 
@@ -677,6 +828,8 @@ export function createUI({ actions }) {
     announce,
     openHelp,
     closeHelp,
+    openWorldsDialog,
+    closeWorldsDialog,
     setVeilDone() {
       if (!refs.veil) return;
       refs.veil.classList.add('is-gone');
@@ -688,6 +841,7 @@ export function createUI({ actions }) {
     },
     isHelpOpen: () => helpOpen,
     isCenterMenuOpen: () => menuOpen,
+    isWorldsOpen: () => worldsOpen,
     refs,
   };
 }

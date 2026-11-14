@@ -941,6 +941,7 @@ export function createRenderer(canvas) {
       centerId = 'sun',
       trailStyle = 'fading',
       showLabels = true,
+      hiddenBodies = null,
       hoveredId = null,
       avoidRects = [],
       reducedMotion = false,
@@ -952,10 +953,15 @@ export function createRenderer(canvas) {
 
     // --- Prepare the world layout once per frame ------------------------
     const centerPosition = positions[centerId] || [0, 0, 0];
+    const hiddenSet = hiddenBodies instanceof Set
+      ? hiddenBodies
+      : new Set(Array.isArray(hiddenBodies) ? hiddenBodies : []);
+    const isVisible = (id) => id === centerId || !hiddenSet.has(id);
     const views = [];
     const viewById = new Map();
 
     for (const body of bodies) {
+      if (!isVisible(body.id)) continue;
       const helio = positions[body.id];
       if (!helio) continue;
       const relative = [

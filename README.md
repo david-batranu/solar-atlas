@@ -8,10 +8,10 @@ recomputed around that new anchor. Switch between glowing comet trails, clean so
 scrub the tempo from hours to years per second, and flip into a top-down Atlas that compresses
 distance so all eleven worlds fit in one composed view.
 
-**Live site:** [david-batranu.github.io/solar-atlas](https://david-batranu.github.io/solar-atlas/)
+**Live site:** [seekahead.eu/solar](https://seekahead.eu/solar/) · [GitHub Pages mirror](https://david-batranu.github.io/solar-atlas/)
 
 Built with vanilla JavaScript and Canvas 2D. No frameworks, no runtime dependencies, no
-external fonts or images.
+external fonts or images. Every world can be shown or hidden independently, including its label and orbit.
 
 ## Preview
 
@@ -26,6 +26,12 @@ external fonts or images.
 
 ![Solar Atlas — Always style, Earth-centered](docs/screenshots/orbits-always.png)
 *Always style: each world’s complete orbit is drawn as a closed, full-brightness loop around its parent, translated into the selected center’s frame. Here Earth is the center; no segment fades.*
+
+![Solar Atlas — visible worlds filter](docs/screenshots/orbits-visible-worlds.png)
+*An Earth-centered view reduced to just Earth, Venus and Mars. The Worlds control hides each world’s marker, label and orbit; the center world stays visible.*
+
+![Solar Atlas — Visible worlds dialog](docs/screenshots/visible-worlds-dialog.png)
+*The Worlds checklist. Show all, clear to the center, then tick the worlds you want to inspect.*
 
 
 ## Run it
@@ -52,6 +58,7 @@ Node 18+ is recommended. There is no install step.
 | **Center picker** in the left panel | Re-anchor the whole map on the Sun, a planet, Pluto, or the Moon. |
 | **Click a world or its label** | Centre the map on that world. |
 | **Orbit lines: Solid / Fading / Always** | Continuous hairlines, luminous comet-tail trails, or complete closed orbits at full brightness with no fading. Always shows each world’s full orbit around its parent, translated into the current center’s frame. |
+| **Visible worlds** | Open **Worlds** beside Orbit lines to show or hide any world’s marker, label and orbit. Use **Center only** to clear the field, then tick the worlds you want. The center world is always visible. |
 | **Orbits / Atlas** | Tilted true-scale view, or the top-down radially compressed whole-system map. |
 | **Drag** | Pan the map. |
 | **Shift + drag** | Tilt and rotate the orbit view (locked in Atlas). |
@@ -60,11 +67,11 @@ Node 18+ is recommended. There is no install step.
 | **Now** | Return to the present moment. |
 | **Fit view** | Frame every orbit in the current center and mode. |
 | **World labels** | Toggle the canvas labels. |
-| **Reset view** | Heliocentric, true distances, fading orbits, default framing. |
+| **Reset view** | Heliocentric, true distances, fading orbits, all worlds visible, default framing. |
 
-Keyboard: `Space` play/pause · `F` fit · `A` toggle Atlas · `R` reset · `1`–`5` hour/day/week/month/year per second · `+`/`-` zoom · arrows pan · `Shift`+arrows tilt · `?` or `H` help · `Esc` close.
+Keyboard: `Space` play/pause · `F` fit · `A` toggle Atlas · `V` visible worlds · `R` reset · `1`–`5` hour/day/week/month/year per second · `+`/`-` zoom · arrows pan · `Shift`+arrows tilt · `?` or `H` help · `Esc` close.
 
-The URL records `center`, `mode`, `trail`, and `labels`, so any view can be shared. Add
+The URL records `center`, `mode`, `trail`, `labels`, and hidden worlds (`hide=mercury,jupiter`), so any view can be shared. Add
 `date=2025-01-01T00:00:00Z` or `paused=1` for a fixed scene.
 
 ## Orbit model

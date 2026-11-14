@@ -61,11 +61,14 @@ const state = {
   direction: 1,
   speedDaysPerSec: DEFAULT_SPEED,
   jd: clamp(astronomy.julianDateFromUnixMs(nowMs), TIME_BOUNDS.minJd, TIME_BOUNDS.maxJd),
+  hiddenBodies: new Set(),
   hoveredId: null,
 };
 
 readInitialUrlState();
 if (!Object.hasOwn(BY_ID, state.centerId)) state.centerId = DEFAULT_CENTER;
+// The center is always visible; ignore a hidden list that names it.
+state.hiddenBodies.delete(state.centerId);
 
 const canvas = document.getElementById('scene');
 const renderer = createRenderer(canvas);
@@ -109,6 +112,8 @@ const actions = {
   setMode: (mode) => setMode(mode),
   setTrailStyle: (style) => setTrailStyle(style),
   setLabels: (labels) => setLabels(labels),
+  setVisibility: (id, visible) => setVisibility(id, visible),
+  setAllVisible: (visible) => setAllVisible(visible),
   togglePlay: () => togglePlay(),
   toggleReverse: () => toggleReverse(),
   setSpeed: (days) => setSpeed(days),
@@ -139,6 +144,13 @@ function readInitialUrlState() {
 
   const trail = params.get('trail');
   if (trail === 'solid' || trail === 'fading' || trail === 'always') state.trailStyle = trail;
+
+  const hide = params.get('hide');
+  if (hide) {
+    for (const id of hide.split(',')) {
+      if (Object.hasOwn(BY_ID, id) && id !== state.centerId) state.hiddenBodies.add(id);
+    }
+  }
 
   if (params.has('labels')) state.labels = params.get('labels') !== '0';
   if (params.get('paused') === '1' || params.get('paused') === 'true') state.playing = false;
@@ -172,6 +184,11 @@ function writeUrlState() {
     url.searchParams.set('mode', state.mode);
     url.searchParams.set('trail', state.trailStyle);
     url.searchParams.set('labels', state.labels ? '1' : '0');
+    const hidden = BODIES
+      .filter((body) => body.id !== state.centerId && state.hiddenBodies.has(body.id))
+      .map((body) => body.id);
+    if (hidden.length) url.searchParams.set('hide', hidden.join(','));
+    else url.searchParams.delete('hide');
     window.history.replaceState(null, '', url);
   } catch {
     /* URLs are a convenience; never let them break the orrery. */
@@ -291,11 +308,24 @@ function relativeToCenter(positions, bodyId) {
   ];
 }
 
+function isBodyVisible(bodyId) {
+  return bodyId === state.centerId || !state.hiddenBodies.has(bodyId);
+}
+
+function visibleBodyCount() {
+  let count = 0;
+  for (const body of BODIES) {
+    if (isBodyVisible(body.id)) count += 1;
+  }
+  return count;
+}
+
 function collectFitPoints(blend) {
   const positions = positionsNow();
   const points = [[0, 0, 0]];
 
   for (const body of BODIES) {
+    if (!isBodyVisible(body.id)) continue;
     const rel = relativeToCenter(positions, body.id);
     if (!rel) continue;
     points.push(displayPosition(rel, blend));
@@ -303,7 +333,7 @@ function collectFitPoints(blend) {
 
   if (Array.isArray(traces)) {
     for (const trace of traces) {
-      if (!trace || !Array.isArray(trace.points)) continue;
+      if (!trace || !Array.isArray(trace.points) || !isBodyVisible(trace.bodyId)) continue;
       for (const point of trace.points) {
         points.push(displayPosition(point, blend));
       }
@@ -399,6 +429,7 @@ function targetBlendForMode(mode = state.mode) {
 }
 
 function recomputeScaleLimits() {
+  if (visibleBodyCount() <= 1) return;
   const points = collectFitPoints(targetBlendForMode());
   const base = {
     ...camera,
@@ -505,6 +536,10 @@ function zoomBy(factor) {
 }
 
 function fitView() {
+  if (visibleBodyCount() <= 1) {
+    ui.showToast('Show at least one more world to fit.');
+    return;
+  }
   hideHover();
   const goal = state.mode === 'atlas' ? atlasFitGoal() : realisticFitAllGoal();
   recomputeScaleLimits();
@@ -574,6 +609,7 @@ function setCenter(id, options = {}) {
 
   hideHover();
   state.centerId = id;
+  state.hiddenBodies.delete(id);
   savedRealisticCamera = null;
   traces = null;
   tracesJd = Number.NaN;
@@ -646,6 +682,39 @@ function setLabels(labels) {
   writeUrlState();
 }
 
+function applyVisibilityChange() {
+  if (state.hoveredId !== null && !isBodyVisible(state.hoveredId)) hideHover();
+  if (visibleBodyCount() > 1) recomputeScaleLimits();
+  syncUI();
+  writeUrlState();
+}
+
+function setVisibility(id, visible) {
+  if (!Object.hasOwn(BY_ID, id) || id === state.centerId) return;
+  const shouldHide = !visible;
+  if (shouldHide === state.hiddenBodies.has(id)) return;
+  if (shouldHide) state.hiddenBodies.add(id);
+  else state.hiddenBodies.delete(id);
+  applyVisibilityChange();
+  const body = BY_ID[id];
+  ui.announce(`${body.name} ${shouldHide ? 'hidden' : 'shown'}.`);
+}
+
+function setAllVisible(visible) {
+  state.hiddenBodies.clear();
+  if (!visible) {
+    for (const body of BODIES) {
+      if (body.id !== state.centerId) state.hiddenBodies.add(body.id);
+    }
+  }
+  applyVisibilityChange();
+  ui.announce(
+    visible
+      ? 'All worlds are visible.'
+      : `Showing only ${BY_ID[state.centerId].name}, the center world.`,
+  );
+}
+
 function togglePlay() {
   if (!state.playing) {
     // At a hard era boundary, starting playback into the wall would appear to
@@ -701,6 +770,7 @@ function resetView() {
   state.mode = 'realistic';
   state.trailStyle = 'fading';
   state.labels = true;
+  state.hiddenBodies.clear();
   savedRealisticCamera = null;
   traces = null;
   tracesJd = Number.NaN;
@@ -712,7 +782,7 @@ function resetView() {
   startAtlasBlend(0, wasAtlas ? 820 : 0);
   syncUI();
   writeUrlState();
-  ui.showToast('View reset: heliocentric, true distances, comet tails.');
+  ui.showToast('View reset: heliocentric, all worlds visible, comet tails.');
   ui.announce('View reset. Heliocentric orbit view centered on the Sun.');
 }
 
@@ -1057,7 +1127,7 @@ function isNativelyActivatedTarget(target) {
 document.addEventListener('keydown', (event) => {
   if (event.defaultPrevented) return;
   if (event.metaKey || event.ctrlKey || event.altKey) return;
-  if (ui.isHelpOpen() || ui.isCenterMenuOpen()) return;
+  if (ui.isHelpOpen() || ui.isCenterMenuOpen() || ui.isWorldsOpen()) return;
 
   const target = event.target;
   if (isTextEntryTarget(target)) return;
@@ -1100,6 +1170,11 @@ document.addEventListener('keydown', (event) => {
     case 'H':
       event.preventDefault();
       ui.openHelp();
+      break;
+    case 'v':
+    case 'V':
+      event.preventDefault();
+      ui.openWorldsDialog();
       break;
     case 'f':
     case 'F':
@@ -1244,6 +1319,7 @@ function drawFrame(now) {
     positions,
     traces: traces || [],
     centerId: state.centerId,
+    hiddenBodies: state.hiddenBodies,
     avoidRects: chromeRects,
     trailStyle: state.trailStyle,
     showLabels: state.labels,
@@ -1315,6 +1391,8 @@ function boot() {
       direction: state.direction,
       speedDaysPerSec: state.speedDaysPerSec,
       jd: state.jd,
+      hiddenBodies: BODIES.filter((body) => state.hiddenBodies.has(body.id)).map((body) => body.id),
+      visibleBodyIds: BODIES.filter((body) => isBodyVisible(body.id)).map((body) => body.id),
       date: astronomy.dateFromJulianDate(state.jd).toISOString(),
       atlasBlend: atlas.blend,
       camera: { ...camera },
@@ -1344,6 +1422,14 @@ function boot() {
       paintTime(true);
       return true;
     },
+    setVisibility: (id, visible = true) => {
+      setVisibility(id, visible);
+      return isBodyVisible(id);
+    },
+    setAllVisible: (visible = true) => {
+      setAllVisible(visible);
+      return visibleBodyCount();
+    },
     togglePlay: () => togglePlay(),
     zoomBy: (factor) => zoomBy(Number(factor) || 1),
     fit: () => fitView(),
@@ -1355,8 +1441,10 @@ function boot() {
       camera: { ...camera },
       layout: renderer.getLastLayout(),
       viewport: { ...viewport },
-      traceCount: Array.isArray(traces) ? traces.length : 0,
+      traceCount: Array.isArray(traces) ? traces.filter((trace) => isBodyVisible(trace.bodyId)).length : 0,
+      totalTraceCount: Array.isArray(traces) ? traces.length : 0,
       bodyCount: BODIES.length,
+      visibleBodyCount: visibleBodyCount(),
     }),
     getPositionsAt: (jd) => astronomy.getPositions(jd),
   };

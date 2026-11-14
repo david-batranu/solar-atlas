@@ -107,10 +107,20 @@
       <p class="center-meta" id="center-meta">Anchor of the solar system</p>
     </section>
 
-    <section class="control">
+    <section class="control control--orbits">
       <div class="control__head">
         <span class="eyebrow">Orbit lines</span>
-        <span class="micro" id="trail-hint">glowing trails</span>
+        <span class="control__head-right">
+          <span class="micro" id="trail-hint">glowing trails</span>
+          <button class="worlds-open" type="button" id="worlds-open" aria-haspopup="dialog" aria-controls="worlds-dialog" aria-expanded="false" title="Show or hide worlds and their orbits">
+            <svg viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              <path d="M2.2 9c2.1-3.15 4.4-4.7 6.8-4.7s4.7 1.55 6.8 4.7c-2.1 3.15-4.4 4.7-6.8 4.7S4.3 12.15 2.2 9Z" stroke="currentColor" stroke-width="1.2"/>
+              <circle cx="9" cy="9" r="2.15" stroke="currentColor" stroke-width="1.2"/>
+            </svg>
+            <span>Worlds</span>
+            <span class="worlds-open__count" id="worlds-count">11</span>
+          </button>
+        </span>
       </div>
       <div class="segmented" id="trail-switch" role="group" aria-label="Orbit line style">
         <button class="segment" type="button" data-trail="solid" aria-pressed="false" title="Continuous hairline orbits">Solid</button>
@@ -206,6 +216,34 @@
     </div>
   </footer>
 
+  <dialog class="worlds-dialog" id="worlds-dialog" aria-labelledby="worlds-title" aria-describedby="worlds-intro">
+    <div class="worlds-dialog__inner">
+      <header class="worlds-dialog__head">
+        <div>
+          <p class="eyebrow">Visibility</p>
+          <h2 id="worlds-title">Visible worlds</h2>
+        </div>
+        <button class="icon-btn" type="button" id="worlds-close" aria-label="Close visible worlds">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="m5.5 5.5 9 9m0-9-9 9" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </header>
+
+      <p class="worlds-dialog__intro" id="worlds-intro">Toggle a world’s marker, label and orbit. The center world always stays visible.</p>
+
+      <div class="worlds-dialog__toolbar">
+        <span class="micro" id="worlds-summary">11 / 11 visible</span>
+        <div class="worlds-dialog__actions">
+          <button class="text-btn" type="button" id="worlds-all">Show all</button>
+          <button class="text-btn" type="button" id="worlds-center-only">Center only</button>
+        </div>
+      </div>
+
+      <div class="worlds-dialog__list" id="worlds-options" role="group" aria-label="World visibility"></div>
+    </div>
+  </dialog>
+
   <div class="help-overlay" id="help-overlay" hidden>
     <div class="help-scrim" data-close-help></div>
     <section class="help-card panel" role="dialog" aria-modal="true" aria-labelledby="help-title" aria-describedby="help-intro">
@@ -243,6 +281,10 @@
         <div class="help-row">
           <span class="shortcut">1 — 5</span>
           <p>Jump between hour, day, week, month and year per second.</p>
+        </div>
+        <div class="help-row">
+          <span class="shortcut">Worlds</span>
+          <p>Use <strong>Worlds</strong> beside Orbit lines to show or hide markers, labels and orbit lines. The center world always stays visible. Press <kbd>V</kbd> to open it.</p>
         </div>
         <div class="help-row">
           <span class="shortcut">Esc</span>

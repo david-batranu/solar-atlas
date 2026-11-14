@@ -12,6 +12,7 @@ Target: 60fps on a laptop, graceful on mobile. No external runtime assets or fon
 - Simulation time speed: play/pause, reverse, log speed control, speed presets, "now".
 - Zoom in/out (wheel, pinch, buttons, fit view) and pan; a true top-down **Atlas** mode that
   compresses radial distance so the entire system is legible at once.
+- Every non-center world can be hidden independently; hiding removes its marker, label and orbit trace and excludes it from Fit. The center world always remains visible. Persist the set in the URL as `hide=<comma-separated ids>`.
 - Orbit lines / labels remain performant and legible in every center and in Atlas.
 
 ## Files and ownership
