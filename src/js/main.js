@@ -39,8 +39,8 @@ const ATLAS_YAW = 0;
 const ATLAS_ELEVATION = 90 * DEG;
 const TRACE_SAMPLES = 520;
 const COMPLETE_TRACE_SAMPLES = 560;
-const MAX_TRACE_SAMPLES = 2400;
-const TRAIL_SPAN_OPTIONS = [0.5, 1, 2, 5, 10];
+const MAX_TRACE_SAMPLES = 3200;
+const TRAIL_SPAN_OPTIONS = [0.5, 1, 2, 5, 10, 20, 50];
 const TRACE_REBUILD_MS = 150;
 const MAX_SCALE = 180000;
 const MIN_SCALE_FLOOR = 0.04;
@@ -94,6 +94,7 @@ const atlas = {
 let cameraTween = null;
 let savedRealisticCamera = null;
 let currentPositions = null;
+let orbitHover = null;
 let traces = null;
 let tracesJd = Number.NaN;
 let tracesBuiltAt = 0;
@@ -599,7 +600,11 @@ function maybeRebuildTraces(now) {
     return;
   }
   if (!state.playing) return;
-  const rebuildInterval = state.trailSpan >= 5 ? 250 : TRACE_REBUILD_MS;
+  const rebuildInterval = state.trailSpan >= 20
+    ? 350
+    : state.trailSpan >= 5
+      ? 250
+      : TRACE_REBUILD_MS;
   if (now - tracesBuiltAt < rebuildInterval) return;
   if (Math.abs(state.jd - tracesJd) < 1e-7) return;
   rebuildTraces(now, true);
@@ -614,10 +619,10 @@ function syncUI() {
 }
 
 function hideHover() {
-  if (state.hoveredId !== null) {
-    state.hoveredId = null;
-    ui.hideHover();
-  }
+  const hadHover = state.hoveredId !== null || orbitHover !== null;
+  state.hoveredId = null;
+  orbitHover = null;
+  if (hadHover) ui.hideHover();
 }
 
 function setCenter(id, options = {}) {
@@ -713,7 +718,12 @@ function setLabels(labels) {
 }
 
 function applyVisibilityChange() {
-  if (state.hoveredId !== null && !isBodyVisible(state.hoveredId)) hideHover();
+  if (
+    (state.hoveredId !== null && !isBodyVisible(state.hoveredId))
+    || (orbitHover !== null && !isBodyVisible(orbitHover.bodyId))
+  ) {
+    hideHover();
+  }
   if (visibleBodyCount() > 1) recomputeScaleLimits();
   syncUI();
   writeUrlState();
@@ -905,13 +915,34 @@ function pointerPosition(event) {
 }
 
 function updateHover(clientX, clientY) {
-  if (state.mode === 'atlas') {
-    // Atlas still supports hover; handled identically.
-  }
   const id = hitTest(clientX, clientY);
   if (!id) {
-    if (state.hoveredId !== null) {
+    const rect = canvas.getBoundingClientRect();
+    const picked = renderer.pickOrbitPoint(
+      clientX - rect.left,
+      clientY - rect.top,
+      8,
+    );
+    if (picked) {
+      const body = BY_ID[picked.bodyId];
+      if (!body) return;
       state.hoveredId = null;
+      orbitHover = picked;
+      canvas.style.cursor = 'crosshair';
+      const date = astronomy.dateFromJulianDate(picked.jd);
+      ui.showOrbitHover({
+        name: body.name,
+        color: body.color,
+        date,
+        x: clientX,
+        y: clientY,
+      });
+      return;
+    }
+
+    if (state.hoveredId !== null || orbitHover !== null) {
+      state.hoveredId = null;
+      orbitHover = null;
       ui.hideHover();
     }
     canvas.style.cursor = gesture ? 'grabbing' : 'grab';
@@ -920,6 +951,7 @@ function updateHover(clientX, clientY) {
 
   const body = BY_ID[id];
   if (!body) return;
+  orbitHover = null;
 
   const changed = state.hoveredId !== id;
   state.hoveredId = id;
@@ -1481,6 +1513,20 @@ function boot() {
       bodyCount: BODIES.length,
       visibleBodyCount: visibleBodyCount(),
     }),
+    pickOrbitAt: (clientX, clientY) => {
+      const rect = canvas.getBoundingClientRect();
+      const hit = renderer.pickOrbitPoint(
+        Number(clientX) - rect.left,
+        Number(clientY) - rect.top,
+        8,
+      );
+      if (!hit) return null;
+      return {
+        bodyId: hit.bodyId,
+        jd: hit.jd,
+        date: astronomy.dateFromJulianDate(hit.jd).toISOString(),
+      };
+    },
     getPositionsAt: (jd) => astronomy.getPositions(jd),
   };
   window.dispatchEvent(new CustomEvent('solar-ready'));

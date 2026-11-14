@@ -4093,3 +4093,7 @@ body.reduced-motion .timebar__date .eyebrow::before {
     display: none;
   }
 }
+
+.hover-card__action:empty {
+  display: none;
+}

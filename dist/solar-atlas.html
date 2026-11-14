@@ -4105,6 +4105,10 @@ body.reduced-motion .timebar__date .eyebrow::before {
   }
 }
 
+.hover-card__action:empty {
+  display: none;
+}
+
 </style>
 </head>
 <body class="is-loading">
@@ -4216,6 +4220,8 @@ body.reduced-motion .timebar__date .eyebrow::before {
               <option value="2">2×</option>
               <option value="5">5×</option>
               <option value="10">10×</option>
+              <option value="20">20×</option>
+              <option value="50">50×</option>
             </select>
           </label>
           <button class="worlds-open" type="button" id="worlds-open" aria-haspopup="dialog" aria-controls="worlds-dialog" aria-expanded="false" title="Show or hide worlds and their orbits">
@@ -4381,6 +4387,10 @@ body.reduced-motion .timebar__date .eyebrow::before {
           <p>Zoom around the pointer. Pinch with two fingers on a touchscreen.</p>
         </div>
         <div class="help-row">
+          <span class="shortcut">Hover</span>
+          <p>Point at any orbit line to see the UTC date and time when that body occupied that spot. Dates remain readable on the faded part of a long trail.</p>
+        </div>
+        <div class="help-row">
           <span class="shortcut">Space</span>
           <p>Pause or resume the simulation. <kbd>F</kbd> fits all orbits, <kbd>A</kbd> switches Atlas, <kbd>R</kbd> resets the view.</p>
         </div>
@@ -4394,7 +4404,7 @@ body.reduced-motion .timebar__date .eyebrow::before {
         </div>
         <div class="help-row">
           <span class="shortcut">Span</span>
-          <p>The <strong>Span</strong> selector beside Orbit lines sets how much history Solid and Fading draw, from 0.5× to 10×. Longer spans keep older positions available; Fading leaves a faint guide across the full span.</p>
+          <p>The <strong>Span</strong> selector beside Orbit lines sets how much history Solid and Fading draw, from 0.5× to 50×. Longer spans keep older positions available; Fading leaves a faint guide across the full span.</p>
         </div>
         <div class="help-row">
           <span class="shortcut">Esc</span>
@@ -5681,7 +5691,7 @@ const MIN_TRACE_WINDOW_DAYS = 120;
 const MAX_TRACE_WINDOW_DAYS = 40 * DAYS_PER_YEAR;
 
 /** Hard ceiling for user-extended history, unless one base orbit is longer. */
-const MAX_TRAIL_HISTORY_DAYS = 100 * DAYS_PER_YEAR;
+const MAX_TRAIL_HISTORY_DAYS = 250 * DAYS_PER_YEAR;
 
 /** A local lunar trail covers a little over two sidereal months. */
 const LUNAR_TRAIL_ORBITS = 2.2;
@@ -5788,7 +5798,7 @@ function displayPosition(p, blend) {
  *    than a moon's `orbitDays` is essential for correct geocentric rosettes.
  *
  * The optional `span` multiplier stretches (or shortens) this base window for
- * the user-facing history control. The result is capped at 100 years unless a
+ * the user-facing history control. The result is capped at 250 years unless a
  * single base orbit is already longer; an outer planet's full orbit is never
  * truncated to the generic cap. Missing/null/invalid period fields are handled
  * defensively: a usable value is chosen when possible and the fallback is
@@ -5796,7 +5806,7 @@ function displayPosition(p, blend) {
  *
  * @param {object} target BODIES-shaped target.
  * @param {object} center BODIES-shaped centre.
- * @param {number} [span=1] History multiplier, clamped to [0.5, 10].
+ * @param {number} [span=1] History multiplier, clamped to [0.5, 50].
  * @returns {number} Window length in days (> 0, finite).
  * @throws {TypeError} If target or center is not an object.
  */
@@ -5838,7 +5848,7 @@ function getTraceWindowDays(target, center, span = 1) {
 
   const multiplier =
     typeof span === 'number' && Number.isFinite(span) && span > 0
-      ? clampNumber(span, 0.5, 10)
+      ? clampNumber(span, 0.5, 50)
       : 1;
   // A full outer-planet orbit is already enormous; never shorten it to the
   // generic history ceiling.
@@ -5875,7 +5885,7 @@ function getTraceWindowDays(target, center, span = 1) {
  *   instead of `getPositions`, so a trace only computes its own target and
  *   center rather than every body in the system.
  * @param {number} [options.span=1] History multiplier for the trace window,
- *   clamped to [0.5, 10].
+ *   clamped to [0.5, 50].
  * @param {number} [options.samples=480] Samples per trace (normalised to an
  *   integer in [2, 20 000]).
  * @returns {Array<{
@@ -5884,6 +5894,8 @@ function getTraceWindowDays(target, center, span = 1) {
  *   points: Array<[number, number, number]>,
  *   alphas: number[],
  *   windowDays: number,
+ *   startJd: number,
+ *   endJd: number,
  *   isClosed: boolean
  * }>} One trace per non-centre body, in input order.
  * @throws {RangeError} If `centerId` does not name a supplied body.
@@ -6104,6 +6116,8 @@ function buildCompleteOrbitTraces({
       // array shape for renderer/tests consistency.
       alphas: new Array(sampleCount).fill(0.9),
       windowDays: periodDays,
+      startJd: jd - periodDays,
+      endJd: jd,
       isClosed: true,
       fullOrbit: true,
     });
@@ -6263,6 +6277,8 @@ function sampleTrace({
     points,
     alphas: buildAlphaProfile(sampleCount),
     windowDays,
+    startJd,
+    endJd: jd,
     isClosed: target.parentId != null && target.parentId === centerId,
   };
 }
@@ -7221,6 +7237,7 @@ function createRenderer(canvas) {
   let ctx = context;
   let viewport = { width: 1, height: 1, dpr: 1 };
   let lastLayout = { bodies: [], labels: [], origin: { x: 0, y: 0 } };
+  let tracePickData = [];
 
   function resize() {
     const rect = canvas.getBoundingClientRect();
@@ -7379,8 +7396,10 @@ function createRenderer(canvas) {
       if (Number.isFinite(projected.x) && Number.isFinite(projected.y)) points.push(projected);
     }
     if (points.length < 2) return null;
+    const sampleCount = points.length;
 
-    // Bridge trace rebuild latency by ending the line at the live world.
+    // Bridge trace rebuild latency by ending the line at the live world. The
+    // bridge is visual only; date picking uses the sampled points.
     if (liveView && liveView.visible && !liveView.offscreen) {
       const last = points[points.length - 1];
       const gap = Math.hypot(last.x - liveView.x, last.y - liveView.y);
@@ -7388,7 +7407,7 @@ function createRenderer(canvas) {
         points.push({ x: liveView.x, y: liveView.y });
       }
     }
-    return points;
+    return { points, sampleCount };
   }
 
   /**
@@ -7597,6 +7616,7 @@ function createRenderer(canvas) {
 
     const time = Number.isFinite(timeMs) ? timeMs : 0;
     ctx.clearRect(0, 0, viewport.width, viewport.height);
+    tracePickData = [];
 
     // --- Prepare the world layout once per frame ------------------------
     const centerPosition = positions[centerId] || [0, 0, 0];
@@ -7667,8 +7687,39 @@ function createRenderer(canvas) {
     for (const trace of traceOrder) {
       const bodyView = viewById.get(trace.bodyId);
       if (!bodyView) continue;
-      const points = traceScreenPoints(trace, camera, atlasBlend, bodyView);
-      if (!points) continue;
+      const screen = traceScreenPoints(trace, camera, atlasBlend, bodyView);
+      if (!screen) continue;
+      const { points, sampleCount } = screen;
+      const startJd = Number(trace.startJd);
+      const endJd = Number(trace.endJd);
+      if (
+        sampleCount > 1
+        && Number.isFinite(startJd)
+        && Number.isFinite(endJd)
+      ) {
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+        for (let i = 0; i < sampleCount; i += 1) {
+          const p = points[i];
+          if (p.x < minX) minX = p.x;
+          if (p.x > maxX) maxX = p.x;
+          if (p.y < minY) minY = p.y;
+          if (p.y > maxY) maxY = p.y;
+        }
+        tracePickData.push({
+          bodyId: trace.bodyId,
+          points,
+          sampleCount,
+          startJd,
+          endJd,
+          minX,
+          minY,
+          maxX,
+          maxY,
+        });
+      }
       const isLoop = Boolean(trace.isClosed)
         || trace.bodyId === 'sun'
         || (trace.centerId === 'moon' && trace.bodyId === 'earth');
@@ -7738,11 +7789,61 @@ function createRenderer(canvas) {
     return lastLayout;
   }
 
+  function pickOrbitPoint(x, y, threshold = 8) {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    const reach = Math.max(2, Number(threshold) || 8);
+    const reachSq = reach * reach;
+    let best = null;
+    let bestDistanceSq = Infinity;
+
+    for (const trace of tracePickData) {
+      if (
+        x < trace.minX - reach
+        || x > trace.maxX + reach
+        || y < trace.minY - reach
+        || y > trace.maxY + reach
+      ) {
+        continue;
+      }
+
+      const points = trace.points;
+      for (let i = 0; i < trace.sampleCount - 1; i += 1) {
+        const a = points[i];
+        const b = points[i + 1];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const lengthSq = dx * dx + dy * dy;
+        let t = lengthSq > 0
+          ? ((x - a.x) * dx + (y - a.y) * dy) / lengthSq
+          : 0;
+        if (t < 0) t = 0;
+        else if (t > 1) t = 1;
+        const px = a.x + dx * t;
+        const py = a.y + dy * t;
+        const dSq = (x - px) * (x - px) + (y - py) * (y - py);
+        if (dSq > reachSq || dSq >= bestDistanceSq) continue;
+
+        bestDistanceSq = dSq;
+        const fraction = (i + t) / Math.max(1, trace.sampleCount - 1);
+        best = {
+          bodyId: trace.bodyId,
+          jd: trace.startJd + (trace.endJd - trace.startJd) * fraction,
+          x: px,
+          y: py,
+          distance: Math.sqrt(dSq),
+        };
+      }
+    }
+
+    return best;
+  }
+
   return {
     resize,
     draw,
     getLastLayout: () => lastLayout,
     getViewport: () => viewport,
+    pickOrbitPoint,
   };
 }
 
@@ -7789,6 +7890,13 @@ const TIME_FORMAT = new Intl.DateTimeFormat('en-GB', {
   hour: '2-digit',
   minute: '2-digit',
   hour12: false,
+  timeZone: 'UTC',
+});
+
+const ORBIT_DATE_FORMAT = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
   timeZone: 'UTC',
 });
 
@@ -8271,11 +8379,11 @@ function createUI({ actions }) {
     refs.hoverCard.classList.remove('is-visible');
   }
 
-  function showHover({ name, meta, color, x, y, isCenter }) {
+  function showHover({ name, meta, color, x, y, isCenter, action = null }) {
     refs.hoverDot.style.setProperty('--body-color', color);
     refs.hoverName.textContent = name;
     refs.hoverMeta.textContent = meta;
-    refs.hoverAction.textContent = isCenter ? 'current center' : 'click to center';
+    refs.hoverAction.textContent = action ?? (isCenter ? 'current center' : 'click to center');
     refs.hoverCard.hidden = false;
     refs.hoverCard.classList.add('is-visible');
 
@@ -8285,6 +8393,19 @@ function createUI({ actions }) {
     const top = clamp(y - 58, 10, window.innerHeight - cardH - 10);
     refs.hoverCard.style.left = `${left}px`;
     refs.hoverCard.style.top = `${top}px`;
+  }
+
+  function showOrbitHover({ name, color, date, x, y }) {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return;
+    showHover({
+      name,
+      meta: `${ORBIT_DATE_FORMAT.format(date)} · ${TIME_FORMAT.format(date)} UTC`,
+      color,
+      x,
+      y,
+      isCenter: false,
+      action: '',
+    });
   }
 
   /* ---------------------------------------------------------------- toast */
@@ -8577,6 +8698,7 @@ function createUI({ actions }) {
     sync,
     updateTime,
     showHover,
+    showOrbitHover,
     hideHover,
     showToast,
     announce,
@@ -8632,8 +8754,8 @@ const ATLAS_YAW = 0;
 const ATLAS_ELEVATION = 90 * DEG;
 const TRACE_SAMPLES = 520;
 const COMPLETE_TRACE_SAMPLES = 560;
-const MAX_TRACE_SAMPLES = 2400;
-const TRAIL_SPAN_OPTIONS = [0.5, 1, 2, 5, 10];
+const MAX_TRACE_SAMPLES = 3200;
+const TRAIL_SPAN_OPTIONS = [0.5, 1, 2, 5, 10, 20, 50];
 const TRACE_REBUILD_MS = 150;
 const MAX_SCALE = 180000;
 const MIN_SCALE_FLOOR = 0.04;
@@ -8687,6 +8809,7 @@ const atlas = {
 let cameraTween = null;
 let savedRealisticCamera = null;
 let currentPositions = null;
+let orbitHover = null;
 let traces = null;
 let tracesJd = Number.NaN;
 let tracesBuiltAt = 0;
@@ -9192,7 +9315,11 @@ function maybeRebuildTraces(now) {
     return;
   }
   if (!state.playing) return;
-  const rebuildInterval = state.trailSpan >= 5 ? 250 : TRACE_REBUILD_MS;
+  const rebuildInterval = state.trailSpan >= 20
+    ? 350
+    : state.trailSpan >= 5
+      ? 250
+      : TRACE_REBUILD_MS;
   if (now - tracesBuiltAt < rebuildInterval) return;
   if (Math.abs(state.jd - tracesJd) < 1e-7) return;
   rebuildTraces(now, true);
@@ -9207,10 +9334,10 @@ function syncUI() {
 }
 
 function hideHover() {
-  if (state.hoveredId !== null) {
-    state.hoveredId = null;
-    ui.hideHover();
-  }
+  const hadHover = state.hoveredId !== null || orbitHover !== null;
+  state.hoveredId = null;
+  orbitHover = null;
+  if (hadHover) ui.hideHover();
 }
 
 function setCenter(id, options = {}) {
@@ -9306,7 +9433,12 @@ function setLabels(labels) {
 }
 
 function applyVisibilityChange() {
-  if (state.hoveredId !== null && !isBodyVisible(state.hoveredId)) hideHover();
+  if (
+    (state.hoveredId !== null && !isBodyVisible(state.hoveredId))
+    || (orbitHover !== null && !isBodyVisible(orbitHover.bodyId))
+  ) {
+    hideHover();
+  }
   if (visibleBodyCount() > 1) recomputeScaleLimits();
   syncUI();
   writeUrlState();
@@ -9498,13 +9630,34 @@ function pointerPosition(event) {
 }
 
 function updateHover(clientX, clientY) {
-  if (state.mode === 'atlas') {
-    // Atlas still supports hover; handled identically.
-  }
   const id = hitTest(clientX, clientY);
   if (!id) {
-    if (state.hoveredId !== null) {
+    const rect = canvas.getBoundingClientRect();
+    const picked = renderer.pickOrbitPoint(
+      clientX - rect.left,
+      clientY - rect.top,
+      8,
+    );
+    if (picked) {
+      const body = BY_ID[picked.bodyId];
+      if (!body) return;
       state.hoveredId = null;
+      orbitHover = picked;
+      canvas.style.cursor = 'crosshair';
+      const date = astronomy.dateFromJulianDate(picked.jd);
+      ui.showOrbitHover({
+        name: body.name,
+        color: body.color,
+        date,
+        x: clientX,
+        y: clientY,
+      });
+      return;
+    }
+
+    if (state.hoveredId !== null || orbitHover !== null) {
+      state.hoveredId = null;
+      orbitHover = null;
       ui.hideHover();
     }
     canvas.style.cursor = gesture ? 'grabbing' : 'grab';
@@ -9513,6 +9666,7 @@ function updateHover(clientX, clientY) {
 
   const body = BY_ID[id];
   if (!body) return;
+  orbitHover = null;
 
   const changed = state.hoveredId !== id;
   state.hoveredId = id;
@@ -10074,6 +10228,20 @@ function boot() {
       bodyCount: BODIES.length,
       visibleBodyCount: visibleBodyCount(),
     }),
+    pickOrbitAt: (clientX, clientY) => {
+      const rect = canvas.getBoundingClientRect();
+      const hit = renderer.pickOrbitPoint(
+        Number(clientX) - rect.left,
+        Number(clientY) - rect.top,
+        8,
+      );
+      if (!hit) return null;
+      return {
+        bodyId: hit.bodyId,
+        jd: hit.jd,
+        date: astronomy.dateFromJulianDate(hit.jd).toISOString(),
+      };
+    },
     getPositionsAt: (jd) => astronomy.getPositions(jd),
   };
   window.dispatchEvent(new CustomEvent('solar-ready'));

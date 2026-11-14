@@ -4,7 +4,7 @@
 
 Open the orrery and watch the planets move along their real Keplerian paths. Change the center
 of the view to the Sun, Earth, Jupiter, the Moon, or any other body, and every orbit is
-recomputed around that new anchor. Switch between glowing comet trails, clean solid lines, and complete, full-brightness orbits, stretch the trail history from half to ten times its default span,
+recomputed around that new anchor. Switch between glowing comet trails, clean solid lines, and complete, full-brightness orbits, stretch the trail history from half to fifty times its default span,
 scrub the tempo from hours to years per second, and flip into a top-down Atlas that compresses
 distance so all eleven worlds fit in one composed view.
 
@@ -33,6 +33,9 @@ external fonts or images. Every world can be shown or hidden independently, incl
 ![Solar Atlas — five times the default trail history](docs/screenshots/orbits-history-5x.png)
 *Five times the default history in an Earth-centered Fading view. The Span selector stretches the trail window, and Fading leaves a faint guide over the whole span so older positions remain visible.*
 
+![Orbit point date tooltip](docs/screenshots/orbit-date-tooltip.png)
+*Hovering any orbit line reveals the exact UTC date and time at that position, even on faded history.*
+
 ![Solar Atlas — Visible worlds dialog](docs/screenshots/visible-worlds-dialog.png)
 *The Worlds checklist. Show all, clear to the center, then tick the worlds you want to inspect.*
 
@@ -60,9 +63,10 @@ Node 18+ is recommended. There is no install step.
 | --- | --- |
 | **Center picker** in the left panel | Re-anchor the whole map on the Sun, a planet, Pluto, or the Moon. |
 | **Click a world or its label** | Centre the map on that world. |
+| **Hover an orbit point** | See the body and the UTC date/time it occupied that point. |
 | **Orbit lines: Solid / Fading / Always** | Continuous hairlines, luminous comet-tail trails, or complete closed orbits at full brightness with no fading. Always shows each world’s full orbit around its parent, translated into the current center’s frame. |
 | **Visible worlds** | Open **Worlds** beside Orbit lines to show or hide any world’s marker, label and orbit. Use **Center only** to clear the field, then tick the worlds you want. The center world is always visible. |
-| **Span** beside Orbit lines | Stretch or shorten the Solid/Fading history from 0.5× to 10× its default window. Longer spans keep older positions available; Fading adds a faint guide across the whole window so its oldest end does not disappear. |
+| **Span** beside Orbit lines | Stretch or shorten the Solid/Fading history from 0.5× to 50× its default window. Longer spans keep older positions available; Fading adds a faint guide across the whole window so its oldest end does not disappear. |
 | **Orbits / Atlas** | Tilted true-scale view, or the top-down radially compressed whole-system map. |
 | **Drag** | Pan the map. |
 | **Shift + drag** | Tilt and rotate the orbit view (locked in Atlas). |
@@ -93,7 +97,7 @@ The URL records `center`, `mode`, `trail`, `span`, `labels`, and hidden worlds (
   are the real eccentric, inclined ellipses. In a planet-centric view, positions are differenced
   against the moving center at the same instant, so the trails are the true geocentric /
   areocentric / etc. rosettes and retrograde loops over several synodic periods.
-- **Long history stays curved.** The Span selector scales the ephemeris sampling with the requested history, and trace paths are drawn with a smooth Catmull–Rom interpolation through the samples. This keeps 5× and 10× geocentric rosettes from turning into visible polygons; *Always* ignores Span and renders complete parent orbits.
+- **Long history stays curved.** The Span selector scales the ephemeris sampling with the requested history, and trace paths are drawn with a smooth Catmull–Rom interpolation through the samples. This keeps extended 5×–50× geocentric rosettes from turning into visible polygons; *Always* ignores Span and renders complete parent orbits.
 - **Atlas mode** is the one deliberate distortion: only the radius is compressed
   (`r' = ln(1 + r / 0.18)`), preserving every angle and orbital shape. A logarithmic scale
   brings Mercury and Neptune into the same frame.
@@ -120,7 +124,7 @@ src/js/ui.js                DOM controller, center picker, transport, modal
 src/js/main.js              application state, time engine, interactions, RAF loop
 scripts/serve.mjs           zero-dependency local static server
 scripts/build-single-file.mjs   dependency-free mini-bundler for dist/solar-atlas.html
-tests/                      45 science, geometry, and camera tests
+tests/                      46 science, geometry, and camera tests
 test/fixtures/              JPL Horizons reference vectors
 CONTRACT.md                 internal engineering contract and module interfaces
 ```

@@ -42,7 +42,7 @@ const MIN_TRACE_WINDOW_DAYS = 120;
 const MAX_TRACE_WINDOW_DAYS = 40 * DAYS_PER_YEAR;
 
 /** Hard ceiling for user-extended history, unless one base orbit is longer. */
-const MAX_TRAIL_HISTORY_DAYS = 100 * DAYS_PER_YEAR;
+const MAX_TRAIL_HISTORY_DAYS = 250 * DAYS_PER_YEAR;
 
 /** A local lunar trail covers a little over two sidereal months. */
 const LUNAR_TRAIL_ORBITS = 2.2;
@@ -149,7 +149,7 @@ export function displayPosition(p, blend) {
  *    than a moon's `orbitDays` is essential for correct geocentric rosettes.
  *
  * The optional `span` multiplier stretches (or shortens) this base window for
- * the user-facing history control. The result is capped at 100 years unless a
+ * the user-facing history control. The result is capped at 250 years unless a
  * single base orbit is already longer; an outer planet's full orbit is never
  * truncated to the generic cap. Missing/null/invalid period fields are handled
  * defensively: a usable value is chosen when possible and the fallback is
@@ -157,7 +157,7 @@ export function displayPosition(p, blend) {
  *
  * @param {object} target BODIES-shaped target.
  * @param {object} center BODIES-shaped centre.
- * @param {number} [span=1] History multiplier, clamped to [0.5, 10].
+ * @param {number} [span=1] History multiplier, clamped to [0.5, 50].
  * @returns {number} Window length in days (> 0, finite).
  * @throws {TypeError} If target or center is not an object.
  */
@@ -199,7 +199,7 @@ export function getTraceWindowDays(target, center, span = 1) {
 
   const multiplier =
     typeof span === 'number' && Number.isFinite(span) && span > 0
-      ? clampNumber(span, 0.5, 10)
+      ? clampNumber(span, 0.5, 50)
       : 1;
   // A full outer-planet orbit is already enormous; never shorten it to the
   // generic history ceiling.
@@ -236,7 +236,7 @@ export function getTraceWindowDays(target, center, span = 1) {
  *   instead of `getPositions`, so a trace only computes its own target and
  *   center rather than every body in the system.
  * @param {number} [options.span=1] History multiplier for the trace window,
- *   clamped to [0.5, 10].
+ *   clamped to [0.5, 50].
  * @param {number} [options.samples=480] Samples per trace (normalised to an
  *   integer in [2, 20 000]).
  * @returns {Array<{
@@ -245,6 +245,8 @@ export function getTraceWindowDays(target, center, span = 1) {
  *   points: Array<[number, number, number]>,
  *   alphas: number[],
  *   windowDays: number,
+ *   startJd: number,
+ *   endJd: number,
  *   isClosed: boolean
  * }>} One trace per non-centre body, in input order.
  * @throws {RangeError} If `centerId` does not name a supplied body.
@@ -465,6 +467,8 @@ export function buildCompleteOrbitTraces({
       // array shape for renderer/tests consistency.
       alphas: new Array(sampleCount).fill(0.9),
       windowDays: periodDays,
+      startJd: jd - periodDays,
+      endJd: jd,
       isClosed: true,
       fullOrbit: true,
     });
@@ -624,6 +628,8 @@ function sampleTrace({
     points,
     alphas: buildAlphaProfile(sampleCount),
     windowDays,
+    startJd,
+    endJd: jd,
     isClosed: target.parentId != null && target.parentId === centerId,
   };
 }

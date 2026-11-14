@@ -13,7 +13,7 @@ Target: 60fps on a laptop, graceful on mobile. No external runtime assets or fon
 - Zoom in/out (wheel, pinch, buttons, fit view) and pan; a true top-down **Atlas** mode that
   compresses radial distance so the entire system is legible at once.
 - Every non-center world can be hidden independently; hiding removes its marker, label and orbit trace and excludes it from Fit. The center world always remains visible. Persist the set in the URL as `hide=<comma-separated ids>`.
-- Solid and Fading history is user-adjustable from 0.5× to 10× the base trace window (`span` URL parameter); Always ignores the multiplier and draws complete parent orbits. Fading keeps a faint guide across the full selected history.
+- Solid and Fading history is user-adjustable from 0.5× to 50× the base trace window (`span` URL parameter); Always ignores the multiplier and draws complete parent orbits. Fading keeps a faint guide across the full selected history. Hovering an orbit segment shows its body and UTC date/time.
 - Orbit lines / labels remain performant and legible in every center and in Atlas.
 
 ## Files and ownership

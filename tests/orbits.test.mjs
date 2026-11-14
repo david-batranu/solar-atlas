@@ -1242,21 +1242,29 @@ test('getTraceWindowDays: history span multiplies base windows and respects caps
   assertClose(getTraceWindowDays(earth, sun, 0.5), 365.256 * 0.5, 1e-9);
   assertClose(getTraceWindowDays(earth, sun, 10), 365.256 * 10, 1e-9);
 
-  // A single outer-planet orbit is already longer than the generic 100-year
-  // history ceiling and must never be shortened.
-  assert.equal(getTraceWindowDays(pluto, sun, 10), 90560);
+  // An outer-planet orbit can push beyond the generic cap but is never
+  // shortened. Pluto's base (≈248 yr) extends to the 250-year ceiling.
+  assert.equal(getTraceWindowDays(pluto, sun, 10), 250 * 365.25);
+  const ultraSlow = makeBody({
+    id: 'ultra-slow',
+    parentId: 'sun',
+    orbitDays: 400 * 365.25,
+    yearDays: 400 * 365.25,
+  });
+  assert.equal(getTraceWindowDays(ultraSlow, sun, 50), 400 * 365.25);
 
-  // Generic windows can exceed their 40-year base, but stop at 100 years.
+  // Generic windows can exceed their 40-year base, but stop at 250 years.
   const slowA = makeBody({ id: 'slow-a', yearDays: 1000, parentId: null });
   const slowB = makeBody({ id: 'slow-b', yearDays: 1000.01, parentId: null });
   const slowBase = getTraceWindowDays(slowA, slowB);
   assertClose(getTraceWindowDays(slowA, slowB, 2), slowBase * 2, 1e-9);
-  assertClose(getTraceWindowDays(slowA, slowB, 10), 100 * 365.25, 1e-9);
+  assertClose(getTraceWindowDays(slowA, slowB, 50), 250 * 365.25, 1e-9);
 
-  // Invalid or out-of-range multipliers fall back to the documented clamp.
+  // Extended options and the documented clamp.
   assert.equal(getTraceWindowDays(earth, sun, Number.NaN), 365.256);
   assert.equal(getTraceWindowDays(earth, sun, 0), 365.256);
-  assertClose(getTraceWindowDays(earth, sun, 20), 365.256 * 10, 1e-9);
+  assertClose(getTraceWindowDays(earth, sun, 20), 365.256 * 20, 1e-9);
+  assertClose(getTraceWindowDays(earth, sun, 100), 365.256 * 50, 1e-9);
 });
 
 test('buildTraces: history span changes the sampled window', () => {
@@ -1280,4 +1288,33 @@ test('buildTraces: history span changes the sampled window', () => {
     1e-12,
     'Earth head position',
   );
+});
+
+test('trace builders expose Julian-day endpoints for point tooltips', () => {
+  const jd = J2000_JD + 4321;
+  const relative = buildTraces({
+    jd,
+    centerId: 'earth',
+    bodies: BODIES,
+    getPositions: fakeSolarSystemPositions,
+    samples: 16,
+  });
+  for (const trace of relative) {
+    assert.equal(trace.endJd, jd);
+    assertClose(trace.startJd, jd - trace.windowDays, 1e-12);
+    assert.ok(trace.startJd < trace.endJd);
+  }
+
+  const complete = buildCompleteOrbitTraces({
+    jd,
+    centerId: 'earth',
+    bodies: BODIES,
+    getPositions: fakeSolarSystemPositions,
+    samples: 16,
+  });
+  for (const trace of complete) {
+    assert.equal(trace.endJd, jd);
+    assertClose(trace.startJd, jd - trace.windowDays, 1e-12);
+    assert.ok(trace.startJd < trace.endJd);
+  }
 });

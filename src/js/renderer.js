@@ -597,6 +597,7 @@ export function createRenderer(canvas) {
   let ctx = context;
   let viewport = { width: 1, height: 1, dpr: 1 };
   let lastLayout = { bodies: [], labels: [], origin: { x: 0, y: 0 } };
+  let tracePickData = [];
 
   function resize() {
     const rect = canvas.getBoundingClientRect();
@@ -755,8 +756,10 @@ export function createRenderer(canvas) {
       if (Number.isFinite(projected.x) && Number.isFinite(projected.y)) points.push(projected);
     }
     if (points.length < 2) return null;
+    const sampleCount = points.length;
 
-    // Bridge trace rebuild latency by ending the line at the live world.
+    // Bridge trace rebuild latency by ending the line at the live world. The
+    // bridge is visual only; date picking uses the sampled points.
     if (liveView && liveView.visible && !liveView.offscreen) {
       const last = points[points.length - 1];
       const gap = Math.hypot(last.x - liveView.x, last.y - liveView.y);
@@ -764,7 +767,7 @@ export function createRenderer(canvas) {
         points.push({ x: liveView.x, y: liveView.y });
       }
     }
-    return points;
+    return { points, sampleCount };
   }
 
   /**
@@ -973,6 +976,7 @@ export function createRenderer(canvas) {
 
     const time = Number.isFinite(timeMs) ? timeMs : 0;
     ctx.clearRect(0, 0, viewport.width, viewport.height);
+    tracePickData = [];
 
     // --- Prepare the world layout once per frame ------------------------
     const centerPosition = positions[centerId] || [0, 0, 0];
@@ -1043,8 +1047,39 @@ export function createRenderer(canvas) {
     for (const trace of traceOrder) {
       const bodyView = viewById.get(trace.bodyId);
       if (!bodyView) continue;
-      const points = traceScreenPoints(trace, camera, atlasBlend, bodyView);
-      if (!points) continue;
+      const screen = traceScreenPoints(trace, camera, atlasBlend, bodyView);
+      if (!screen) continue;
+      const { points, sampleCount } = screen;
+      const startJd = Number(trace.startJd);
+      const endJd = Number(trace.endJd);
+      if (
+        sampleCount > 1
+        && Number.isFinite(startJd)
+        && Number.isFinite(endJd)
+      ) {
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+        for (let i = 0; i < sampleCount; i += 1) {
+          const p = points[i];
+          if (p.x < minX) minX = p.x;
+          if (p.x > maxX) maxX = p.x;
+          if (p.y < minY) minY = p.y;
+          if (p.y > maxY) maxY = p.y;
+        }
+        tracePickData.push({
+          bodyId: trace.bodyId,
+          points,
+          sampleCount,
+          startJd,
+          endJd,
+          minX,
+          minY,
+          maxX,
+          maxY,
+        });
+      }
       const isLoop = Boolean(trace.isClosed)
         || trace.bodyId === 'sun'
         || (trace.centerId === 'moon' && trace.bodyId === 'earth');
@@ -1114,10 +1149,60 @@ export function createRenderer(canvas) {
     return lastLayout;
   }
 
+  function pickOrbitPoint(x, y, threshold = 8) {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    const reach = Math.max(2, Number(threshold) || 8);
+    const reachSq = reach * reach;
+    let best = null;
+    let bestDistanceSq = Infinity;
+
+    for (const trace of tracePickData) {
+      if (
+        x < trace.minX - reach
+        || x > trace.maxX + reach
+        || y < trace.minY - reach
+        || y > trace.maxY + reach
+      ) {
+        continue;
+      }
+
+      const points = trace.points;
+      for (let i = 0; i < trace.sampleCount - 1; i += 1) {
+        const a = points[i];
+        const b = points[i + 1];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const lengthSq = dx * dx + dy * dy;
+        let t = lengthSq > 0
+          ? ((x - a.x) * dx + (y - a.y) * dy) / lengthSq
+          : 0;
+        if (t < 0) t = 0;
+        else if (t > 1) t = 1;
+        const px = a.x + dx * t;
+        const py = a.y + dy * t;
+        const dSq = (x - px) * (x - px) + (y - py) * (y - py);
+        if (dSq > reachSq || dSq >= bestDistanceSq) continue;
+
+        bestDistanceSq = dSq;
+        const fraction = (i + t) / Math.max(1, trace.sampleCount - 1);
+        best = {
+          bodyId: trace.bodyId,
+          jd: trace.startJd + (trace.endJd - trace.startJd) * fraction,
+          x: px,
+          y: py,
+          distance: Math.sqrt(dSq),
+        };
+      }
+    }
+
+    return best;
+  }
+
   return {
     resize,
     draw,
     getLastLayout: () => lastLayout,
     getViewport: () => viewport,
+    pickOrbitPoint,
   };
 }

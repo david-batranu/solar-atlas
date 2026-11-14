@@ -41,6 +41,13 @@ const TIME_FORMAT = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'UTC',
 });
 
+const ORBIT_DATE_FORMAT = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+
 const FULL_FORMAT = new Intl.DateTimeFormat('en-GB', {
   day: 'numeric',
   month: 'long',
@@ -524,11 +531,11 @@ export function createUI({ actions }) {
     refs.hoverCard.classList.remove('is-visible');
   }
 
-  function showHover({ name, meta, color, x, y, isCenter }) {
+  function showHover({ name, meta, color, x, y, isCenter, action = null }) {
     refs.hoverDot.style.setProperty('--body-color', color);
     refs.hoverName.textContent = name;
     refs.hoverMeta.textContent = meta;
-    refs.hoverAction.textContent = isCenter ? 'current center' : 'click to center';
+    refs.hoverAction.textContent = action ?? (isCenter ? 'current center' : 'click to center');
     refs.hoverCard.hidden = false;
     refs.hoverCard.classList.add('is-visible');
 
@@ -538,6 +545,19 @@ export function createUI({ actions }) {
     const top = clamp(y - 58, 10, window.innerHeight - cardH - 10);
     refs.hoverCard.style.left = `${left}px`;
     refs.hoverCard.style.top = `${top}px`;
+  }
+
+  function showOrbitHover({ name, color, date, x, y }) {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return;
+    showHover({
+      name,
+      meta: `${ORBIT_DATE_FORMAT.format(date)} · ${TIME_FORMAT.format(date)} UTC`,
+      color,
+      x,
+      y,
+      isCenter: false,
+      action: '',
+    });
   }
 
   /* ---------------------------------------------------------------- toast */
@@ -830,6 +850,7 @@ export function createUI({ actions }) {
     sync,
     updateTime,
     showHover,
+    showOrbitHover,
     hideHover,
     showToast,
     announce,
