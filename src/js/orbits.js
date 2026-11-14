@@ -285,6 +285,179 @@ export function buildTraces({
 }
 
 /**
+ * Build complete closed orbits for every body except the center.
+ *
+ * This is the geometry used by the "Always" trail style. Unlike buildTraces,
+ * which follows the apparent center-relative trail over time, this function
+ * samples each body's full orbit around its parent and translates it by the
+ * parent's current position relative to the chosen center:
+ *
+ *   planet (parent Sun)  -> full heliocentric ellipse, offset by the Sun's
+ *                           current position in the selected center's frame
+ *   Moon   (parent Earth) -> full lunar ellipse, offset by Earth's current
+ *                           position in the selected center's frame
+ *   Sun    (no parent)    -> the center's apparent solar orbit over one
+ *                           center year (a complete loop around the center)
+ *
+ * The body's current position is always the final point: for a target orbiting
+ * a parent, `rel(target,parent) + rel(parent,center)` equals `rel(target,center)`.
+ * These paths are closed loops and are drawn uniformly at full brightness by
+ * the renderer; there is no fading.
+ *
+ * @param {object} options
+ * @param {number} options.jd Current Julian Day; the final sample.
+ * @param {string} options.centerId Id of the body placed at the origin.
+ * @param {Array<object>|Iterable<object>} options.bodies BODIES-shaped metadata.
+ * @param {(jd: number) => object} [options.getPositions] Optional bulk provider.
+ * @param {(bodyId: string, jd: number) => number[]} [options.getPosition]
+ *   Preferred direct provider; every sample only evaluates the target, parent
+ *   and (for the apparent solar orbit) center bodies.
+ * @param {number} [options.samples=560] Samples per complete orbit.
+ * @returns {Array<{
+ *   bodyId: string,
+ *   centerId: string,
+ *   points: Array<[number, number, number]>,
+ *   alphas: number[],
+ *   windowDays: number,
+ *   isClosed: boolean,
+ *   fullOrbit: boolean
+ * }>} One complete-orbit trace per non-center body.
+ * @throws {RangeError} If `centerId` does not name a supplied body.
+ * @throws {TypeError} If arguments are malformed.
+ */
+export function buildCompleteOrbitTraces({
+  jd,
+  centerId,
+  bodies,
+  getPositions = null,
+  getPosition = null,
+  samples = 560,
+} = {}) {
+  if (typeof getPosition !== 'function' && typeof getPositions !== 'function') {
+    throw new TypeError(
+      'buildCompleteOrbitTraces: getPosition or getPositions must be a function'
+    );
+  }
+  if (typeof jd !== 'number' || !Number.isFinite(jd)) {
+    throw new TypeError('buildCompleteOrbitTraces: jd must be a finite number');
+  }
+
+  const bodyList = toBodyList(bodies);
+  const center = bodyList.find((body) => isObject(body) && body.id === centerId);
+  if (!center) {
+    throw new RangeError(
+      `buildCompleteOrbitTraces: unknown centerId "${String(centerId)}"`
+    );
+  }
+
+  const sampleCount = normalizeSampleCount(samples);
+  const direct = typeof getPosition === 'function';
+  let cachedTime = Number.NaN;
+  let cachedSnapshot = null;
+
+  /** Read one body at one instant, with a bulk-provider cache per instant. */
+  function read(bodyId, time) {
+    if (direct) return getPosition(bodyId, time);
+    if (time !== cachedTime || cachedSnapshot === null) {
+      cachedSnapshot = getPositions(time);
+      cachedTime = time;
+    }
+    return lookupPosition(cachedSnapshot, bodyId);
+  }
+
+  const centerNow = read(centerId, jd);
+  if (!isFiniteVector3(centerNow)) return [];
+
+  const traces = [];
+
+  for (const target of bodyList) {
+    if (!isObject(target) || target.id === centerId) continue;
+
+    let parentId = null;
+    let periodDays = null;
+    let translation = [0, 0, 0];
+
+    if (target.id === 'sun') {
+      // The Sun's apparent loop around a planet is the center's own orbit,
+      // mirrored through the origin. It is complete over one center year.
+      periodDays = positiveDays(center.yearDays) ?? DEFAULT_WINDOW_DAYS;
+    } else if (typeof target.parentId === 'string' && target.parentId.length > 0) {
+      parentId = target.parentId;
+      periodDays = positiveDays(target.orbitDays)
+        ?? positiveDays(center.orbitDays)
+        ?? DEFAULT_WINDOW_DAYS;
+
+      const parentNow = read(parentId, jd);
+      if (!isFiniteVector3(parentNow)) continue;
+      translation = [
+        parentNow[0] - centerNow[0],
+        parentNow[1] - centerNow[1],
+        parentNow[2] - centerNow[2],
+      ];
+    } else {
+      continue;
+    }
+
+    if (!Number.isFinite(periodDays) || periodDays <= 0) continue;
+
+    const points = new Array(sampleCount);
+    const startJd = jd - periodDays;
+    const stepDays = periodDays / Math.max(1, sampleCount - 1);
+    let failed = false;
+
+    for (let i = 0; i < sampleCount; i += 1) {
+      const sampleJd = i === sampleCount - 1 ? jd : startJd + stepDays * i;
+
+      let targetPosition;
+      let point;
+
+      if (parentId === null) {
+        const centerPosition = read(centerId, sampleJd);
+        if (!isFiniteVector3(centerPosition)) {
+          failed = true;
+          break;
+        }
+        point = [-centerPosition[0], -centerPosition[1], -centerPosition[2]];
+      } else {
+        targetPosition = read(target.id, sampleJd);
+        const parentPosition = read(parentId, sampleJd);
+        if (!isFiniteVector3(targetPosition) || !isFiniteVector3(parentPosition)) {
+          failed = true;
+          break;
+        }
+        point = [
+          targetPosition[0] - parentPosition[0] + translation[0],
+          targetPosition[1] - parentPosition[1] + translation[1],
+          targetPosition[2] - parentPosition[2] + translation[2],
+        ];
+      }
+
+      if (!point.every(Number.isFinite)) {
+        failed = true;
+        break;
+      }
+      points[i] = point;
+    }
+
+    if (failed) continue;
+
+    traces.push({
+      bodyId: target.id,
+      centerId,
+      points,
+      // The Always style deliberately ignores per-point alpha, but keep the
+      // array shape for renderer/tests consistency.
+      alphas: new Array(sampleCount).fill(0.9),
+      windowDays: periodDays,
+      isClosed: true,
+      fullOrbit: true,
+    });
+  }
+
+  return traces;
+}
+
+/**
  * Synodic period between two heliocentric (or otherwise co-planar) periods.
  *
  * `1 / |1/a - 1/b|` is the time between successive conjunctions. Returns

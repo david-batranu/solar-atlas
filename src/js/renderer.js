@@ -815,15 +815,16 @@ export function createRenderer(canvas) {
       ctx.beginPath();
       ctx.moveTo(points[0].x, points[0].y);
       for (let i = 1; i < n; i += 1) ctx.lineTo(points[i].x, points[i].y);
+      if (trace?.fullOrbit) ctx.closePath();
 
       ctx.strokeStyle = body.glow || color;
-      ctx.globalAlpha = hovered ? 0.24 : 0.13;
+      ctx.globalAlpha = hovered ? 0.26 : 0.14;
       ctx.lineWidth = hovered ? 7 : 5.2;
       ctx.stroke();
 
       ctx.strokeStyle = color;
-      ctx.globalAlpha = hovered ? 1 : 0.86;
-      ctx.lineWidth = hovered ? 1.9 : 1.35;
+      ctx.globalAlpha = hovered ? 1 : 0.96;
+      ctx.lineWidth = hovered ? 1.9 : 1.4;
       ctx.stroke();
 
       if (hovered) {

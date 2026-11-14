@@ -7,6 +7,7 @@ import {
   displayPosition,
   getTraceWindowDays,
   buildTraces,
+  buildCompleteOrbitTraces,
   synodicPeriodDays,
   relativePosition,
   clampNumber,
@@ -1147,4 +1148,85 @@ test('buildTraces: 10 bodies × 480 samples completes comfortably', (t) => {
     assert.equal(trace.points.length, samples);
     assertValidTrace(trace, samples);
   }
+});
+
+
+/* ------------------------------------------------------------------------- */
+/* Complete-orbit traces for the Always style                                */
+/* ------------------------------------------------------------------------- */
+
+test('buildCompleteOrbitTraces: every non-center body gets a closed full orbit', () => {
+  const jd = J2000_JD + 8000;
+  const samples = 64;
+  const positions = fakeSolarSystemPositions(jd);
+  const traces = buildCompleteOrbitTraces({
+    jd,
+    centerId: 'earth',
+    bodies: BODIES,
+    getPositions: fakeSolarSystemPositions,
+    samples,
+  });
+  const byId = new Map(traces.map((trace) => [trace.bodyId, trace]));
+
+  assert.equal(traces.length, BODIES.length - 1);
+  assert.equal(byId.has('earth'), false);
+
+  for (const trace of traces) {
+    assert.equal(trace.centerId, 'earth');
+    assert.equal(trace.fullOrbit, true);
+    assert.equal(trace.isClosed, true);
+    assert.equal(trace.points.length, samples);
+    assert.equal(trace.alphas.length, samples);
+    assert.equal(trace.alphas[0], 0.9);
+    assert.equal(trace.alphas[samples - 1], 0.9);
+    assert.ok(trace.windowDays > 0 && Number.isFinite(trace.windowDays));
+    assertFinitePoints(trace.points);
+    assertPointClose(
+      trace.points[trace.points.length - 1],
+      expectedRelative(positions, trace.bodyId, 'earth'),
+      1e-12,
+      `${trace.bodyId} current position`
+    );
+    // A complete orbit is a closed loop: the first and last samples coincide.
+    assertPointClose(trace.points[0], trace.points[trace.points.length - 1], 1e-6, `${trace.bodyId} loop closure`);
+  }
+
+  // The Moon is translated into Earth's frame and still forms a full lunar loop.
+  const moon = byId.get('moon');
+  assertClose(moon.windowDays, MOON_ORBIT_DAYS, 1e-9, 'lunar period');
+});
+
+test('buildCompleteOrbitTraces: heliocentric ellipses and validation', () => {
+  const jd = J2000_JD + 1000;
+  const positions = fakeSolarSystemPositions(jd);
+  const traces = buildCompleteOrbitTraces({
+    jd,
+    centerId: 'sun',
+    bodies: BODIES,
+    getPosition: (bodyId, time) => fakeSolarSystemPositions(time)[bodyId],
+    samples: 48,
+  });
+  const earth = traces.find((trace) => trace.bodyId === 'earth');
+
+  assert.ok(earth);
+  assert.equal(earth.fullOrbit, true);
+  assertPointClose(earth.points[earth.points.length - 1], positions.earth, 1e-12, 'Earth current');
+  assertPointClose(earth.points[0], positions.earth, 1e-6, 'Earth returns to start after one year');
+  // The Sun has no parent and is not a target in a heliocentric view.
+  assert.equal(traces.some((trace) => trace.bodyId === 'sun'), false);
+
+  assert.throws(
+    () => buildCompleteOrbitTraces({ jd, centerId: 'sun', bodies: BODIES, samples: 8 }),
+    /getPosition or getPositions/
+  );
+  assert.throws(
+    () => buildCompleteOrbitTraces({
+      jd,
+      centerId: 'not-a-world',
+      bodies: BODIES,
+      getPositions: fakeSolarSystemPositions,
+      samples: 8,
+    }),
+    /unknown centerId/
+  );
 });

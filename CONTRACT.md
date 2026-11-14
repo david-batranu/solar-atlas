@@ -8,7 +8,7 @@ Target: 60fps on a laptop, graceful on mobile. No external runtime assets or fon
 - Realistic heliocentric orbits from Keplerian elements (eccentricity + inclination included).
 - Center can be any of: Sun, Mercury, Venus, Earth, Moon, Mars, Jupiter, Saturn, Uranus,
   Neptune, Pluto. Heliocentric on first load. The center body sits at the origin.
-- Orbit trail style: **solid** or **fading** (alpha increases toward the body's current position).
+- Orbit trail style: **solid**, **fading** (alpha increases toward the body's current position), or **always** (complete closed parent orbit in the selected center’s frame, uniform full brightness).
 - Simulation time speed: play/pause, reverse, log speed control, speed presets, "now".
 - Zoom in/out (wheel, pinch, buttons, fit view) and pan; a true top-down **Atlas** mode that
   compresses radial distance so the entire system is legible at once.

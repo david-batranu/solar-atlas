@@ -541,7 +541,7 @@ export function createUI({ actions }) {
     refs.trailHint.textContent = state.trailStyle === 'fading'
       ? 'comet tails'
       : state.trailStyle === 'always'
-        ? 'always visible'
+        ? 'full orbits'
         : 'continuous';
 
     // Labels.

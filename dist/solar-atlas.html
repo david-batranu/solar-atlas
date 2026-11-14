@@ -3609,7 +3609,7 @@ body.reduced-motion .timebar__date .eyebrow::before {
       <div class="segmented" id="trail-switch" role="group" aria-label="Orbit line style">
         <button class="segment" type="button" data-trail="solid" aria-pressed="false" title="Continuous hairline orbits">Solid</button>
         <button class="segment is-active" type="button" data-trail="fading" aria-pressed="true" title="Comet-tail orbits that fade behind each world">Fading</button>
-        <button class="segment" type="button" data-trail="always" aria-pressed="false" title="Full-brightness orbit lines with a soft glow, always visible">Always</button>
+        <button class="segment" type="button" data-trail="always" aria-pressed="false" title="Complete closed orbits at full brightness, with no fading">Always</button>
       </div>
     </section>
 
@@ -3746,7 +3746,7 @@ body.reduced-motion .timebar__date .eyebrow::before {
 
       <div class="help-note">
         <span class="eyebrow">About the model</span>
-        <p>Planetary positions come from JPL's Keplerian elements for the mean ecliptic and equinox of J2000, with Kepler's equation solved for every frame. The Moon uses a truncated lunar theory. Distances in <em>Orbits</em> are true; marker sizes are exaggerated for visibility. <em>Atlas</em> compresses radial distance logarithmically, keeping the orbital angles intact. This is an exploratory orrery, not a precision ephemeris.</p>
+        <p>Planetary positions come from JPL's Keplerian elements for the mean ecliptic and equinox of J2000, with Kepler's equation solved for every frame. The Moon uses a truncated lunar theory. Distances in <em>Orbits</em> are true; marker sizes are exaggerated for visibility. <em>Atlas</em> compresses radial distance logarithmically, keeping the orbital angles intact. <em>Always</em> draws each world’s complete orbit around its parent — planets around the Sun, the Moon around Earth — translated into the current center’s frame at full brightness, with no fading. This is an exploratory orrery, not a precision ephemeris.</p>
       </div>
 
       <footer class="help-card__foot">
@@ -5266,6 +5266,179 @@ function buildTraces({
 }
 
 /**
+ * Build complete closed orbits for every body except the center.
+ *
+ * This is the geometry used by the "Always" trail style. Unlike buildTraces,
+ * which follows the apparent center-relative trail over time, this function
+ * samples each body's full orbit around its parent and translates it by the
+ * parent's current position relative to the chosen center:
+ *
+ *   planet (parent Sun)  -> full heliocentric ellipse, offset by the Sun's
+ *                           current position in the selected center's frame
+ *   Moon   (parent Earth) -> full lunar ellipse, offset by Earth's current
+ *                           position in the selected center's frame
+ *   Sun    (no parent)    -> the center's apparent solar orbit over one
+ *                           center year (a complete loop around the center)
+ *
+ * The body's current position is always the final point: for a target orbiting
+ * a parent, `rel(target,parent) + rel(parent,center)` equals `rel(target,center)`.
+ * These paths are closed loops and are drawn uniformly at full brightness by
+ * the renderer; there is no fading.
+ *
+ * @param {object} options
+ * @param {number} options.jd Current Julian Day; the final sample.
+ * @param {string} options.centerId Id of the body placed at the origin.
+ * @param {Array<object>|Iterable<object>} options.bodies BODIES-shaped metadata.
+ * @param {(jd: number) => object} [options.getPositions] Optional bulk provider.
+ * @param {(bodyId: string, jd: number) => number[]} [options.getPosition]
+ *   Preferred direct provider; every sample only evaluates the target, parent
+ *   and (for the apparent solar orbit) center bodies.
+ * @param {number} [options.samples=560] Samples per complete orbit.
+ * @returns {Array<{
+ *   bodyId: string,
+ *   centerId: string,
+ *   points: Array<[number, number, number]>,
+ *   alphas: number[],
+ *   windowDays: number,
+ *   isClosed: boolean,
+ *   fullOrbit: boolean
+ * }>} One complete-orbit trace per non-center body.
+ * @throws {RangeError} If `centerId` does not name a supplied body.
+ * @throws {TypeError} If arguments are malformed.
+ */
+function buildCompleteOrbitTraces({
+  jd,
+  centerId,
+  bodies,
+  getPositions = null,
+  getPosition = null,
+  samples = 560,
+} = {}) {
+  if (typeof getPosition !== 'function' && typeof getPositions !== 'function') {
+    throw new TypeError(
+      'buildCompleteOrbitTraces: getPosition or getPositions must be a function'
+    );
+  }
+  if (typeof jd !== 'number' || !Number.isFinite(jd)) {
+    throw new TypeError('buildCompleteOrbitTraces: jd must be a finite number');
+  }
+
+  const bodyList = toBodyList(bodies);
+  const center = bodyList.find((body) => isObject(body) && body.id === centerId);
+  if (!center) {
+    throw new RangeError(
+      `buildCompleteOrbitTraces: unknown centerId "${String(centerId)}"`
+    );
+  }
+
+  const sampleCount = normalizeSampleCount(samples);
+  const direct = typeof getPosition === 'function';
+  let cachedTime = Number.NaN;
+  let cachedSnapshot = null;
+
+  /** Read one body at one instant, with a bulk-provider cache per instant. */
+  function read(bodyId, time) {
+    if (direct) return getPosition(bodyId, time);
+    if (time !== cachedTime || cachedSnapshot === null) {
+      cachedSnapshot = getPositions(time);
+      cachedTime = time;
+    }
+    return lookupPosition(cachedSnapshot, bodyId);
+  }
+
+  const centerNow = read(centerId, jd);
+  if (!isFiniteVector3(centerNow)) return [];
+
+  const traces = [];
+
+  for (const target of bodyList) {
+    if (!isObject(target) || target.id === centerId) continue;
+
+    let parentId = null;
+    let periodDays = null;
+    let translation = [0, 0, 0];
+
+    if (target.id === 'sun') {
+      // The Sun's apparent loop around a planet is the center's own orbit,
+      // mirrored through the origin. It is complete over one center year.
+      periodDays = positiveDays(center.yearDays) ?? DEFAULT_WINDOW_DAYS;
+    } else if (typeof target.parentId === 'string' && target.parentId.length > 0) {
+      parentId = target.parentId;
+      periodDays = positiveDays(target.orbitDays)
+        ?? positiveDays(center.orbitDays)
+        ?? DEFAULT_WINDOW_DAYS;
+
+      const parentNow = read(parentId, jd);
+      if (!isFiniteVector3(parentNow)) continue;
+      translation = [
+        parentNow[0] - centerNow[0],
+        parentNow[1] - centerNow[1],
+        parentNow[2] - centerNow[2],
+      ];
+    } else {
+      continue;
+    }
+
+    if (!Number.isFinite(periodDays) || periodDays <= 0) continue;
+
+    const points = new Array(sampleCount);
+    const startJd = jd - periodDays;
+    const stepDays = periodDays / Math.max(1, sampleCount - 1);
+    let failed = false;
+
+    for (let i = 0; i < sampleCount; i += 1) {
+      const sampleJd = i === sampleCount - 1 ? jd : startJd + stepDays * i;
+
+      let targetPosition;
+      let point;
+
+      if (parentId === null) {
+        const centerPosition = read(centerId, sampleJd);
+        if (!isFiniteVector3(centerPosition)) {
+          failed = true;
+          break;
+        }
+        point = [-centerPosition[0], -centerPosition[1], -centerPosition[2]];
+      } else {
+        targetPosition = read(target.id, sampleJd);
+        const parentPosition = read(parentId, sampleJd);
+        if (!isFiniteVector3(targetPosition) || !isFiniteVector3(parentPosition)) {
+          failed = true;
+          break;
+        }
+        point = [
+          targetPosition[0] - parentPosition[0] + translation[0],
+          targetPosition[1] - parentPosition[1] + translation[1],
+          targetPosition[2] - parentPosition[2] + translation[2],
+        ];
+      }
+
+      if (!point.every(Number.isFinite)) {
+        failed = true;
+        break;
+      }
+      points[i] = point;
+    }
+
+    if (failed) continue;
+
+    traces.push({
+      bodyId: target.id,
+      centerId,
+      points,
+      // The Always style deliberately ignores per-point alpha, but keep the
+      // array shape for renderer/tests consistency.
+      alphas: new Array(sampleCount).fill(0.9),
+      windowDays: periodDays,
+      isClosed: true,
+      fullOrbit: true,
+    });
+  }
+
+  return traces;
+}
+
+/**
  * Synodic period between two heliocentric (or otherwise co-planar) periods.
  *
  * `1 / |1/a - 1/b|` is the time between successive conjunctions. Returns
@@ -5511,7 +5684,7 @@ function finiteComponent(vector, index) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
-return { ATLAS_SCALE_AU, compressDistance, displayPosition, getTraceWindowDays, buildTraces, synodicPeriodDays, relativePosition, clampNumber };
+return { ATLAS_SCALE_AU, compressDistance, displayPosition, getTraceWindowDays, buildTraces, buildCompleteOrbitTraces, synodicPeriodDays, relativePosition, clampNumber };
 })();
 
 __SS["camera"] = (() => {
@@ -6591,15 +6764,16 @@ function createRenderer(canvas) {
       ctx.beginPath();
       ctx.moveTo(points[0].x, points[0].y);
       for (let i = 1; i < n; i += 1) ctx.lineTo(points[i].x, points[i].y);
+      if (trace?.fullOrbit) ctx.closePath();
 
       ctx.strokeStyle = body.glow || color;
-      ctx.globalAlpha = hovered ? 0.24 : 0.13;
+      ctx.globalAlpha = hovered ? 0.26 : 0.14;
       ctx.lineWidth = hovered ? 7 : 5.2;
       ctx.stroke();
 
       ctx.strokeStyle = color;
-      ctx.globalAlpha = hovered ? 1 : 0.86;
-      ctx.lineWidth = hovered ? 1.9 : 1.35;
+      ctx.globalAlpha = hovered ? 1 : 0.96;
+      ctx.lineWidth = hovered ? 1.9 : 1.4;
       ctx.stroke();
 
       if (hovered) {
@@ -7410,7 +7584,7 @@ function createUI({ actions }) {
     refs.trailHint.textContent = state.trailStyle === 'fading'
       ? 'comet tails'
       : state.trailStyle === 'always'
-        ? 'always visible'
+        ? 'full orbits'
         : 'continuous';
 
     // Labels.
@@ -7568,7 +7742,7 @@ __SS["main"] = (() => {
 "use strict";
 const { BODIES, BY_ID, AU_KM } = __SS["data"];
 const astronomy = __SS["ephemeris"];
-const { buildTraces, displayPosition } = __SS["orbits"];
+const { buildCompleteOrbitTraces, buildTraces, displayPosition } = __SS["orbits"];
 const { createRenderer } = __SS["renderer"];
 const { createUI, DEFAULT_SPEED, SPEED_PRESETS } = __SS["ui"];
 const { createCamera, cloneCamera, fitCamera, fitCameraToRadius, getInsetArea, zoomAt, panBy, rotateBy, interpolateCamera, easeInOutCubic, centerOnArea, clamp, DEG } = __SS["camera"];
@@ -7592,6 +7766,7 @@ const REALISTIC_ELEVATION = 60 * DEG;
 const ATLAS_YAW = 0;
 const ATLAS_ELEVATION = 90 * DEG;
 const TRACE_SAMPLES = 520;
+const COMPLETE_TRACE_SAMPLES = 560;
 const TRACE_REBUILD_MS = 150;
 const MAX_SCALE = 180000;
 const MIN_SCALE_FLOOR = 0.04;
@@ -8071,13 +8246,15 @@ function rebuildTraces(now = performance.now(), force = false) {
   if (!force && traces && Math.abs(state.jd - tracesJd) < 1e-8) return;
   currentPositions = astronomy.getPositions(state.jd);
   try {
-    traces = buildTraces({
+    const completeOrbits = state.trailStyle === 'always';
+    const build = completeOrbits ? buildCompleteOrbitTraces : buildTraces;
+    traces = build({
       jd: state.jd,
       centerId: state.centerId,
       bodies: BODIES,
       getPositions: astronomy.getPositions,
       getPosition: astronomy.getHeliocentricPosition,
-      samples: TRACE_SAMPLES,
+      samples: completeOrbits ? COMPLETE_TRACE_SAMPLES : TRACE_SAMPLES,
     });
     tracesJd = state.jd;
     tracesBuiltAt = now;
@@ -8179,7 +8356,14 @@ function setMode(mode) {
 
 function setTrailStyle(style) {
   if (style !== 'solid' && style !== 'fading' && style !== 'always') return;
+  if (style === state.trailStyle) return;
   state.trailStyle = style;
+  // Always uses complete closed parent orbits rather than center-relative
+  // trails, so the trace geometry itself changes with the style.
+  traces = null;
+  tracesJd = Number.NaN;
+  rebuildTraces(performance.now(), true);
+  recomputeScaleLimits();
   syncUI();
   writeUrlState();
 }

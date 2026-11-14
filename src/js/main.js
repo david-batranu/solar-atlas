@@ -8,7 +8,7 @@
 
 import { BODIES, BY_ID, AU_KM } from './data.js';
 import * as astronomy from './ephemeris.js';
-import { buildTraces, displayPosition } from './orbits.js';
+import { buildCompleteOrbitTraces, buildTraces, displayPosition } from './orbits.js';
 import { createRenderer } from './renderer.js';
 import { createUI, DEFAULT_SPEED, SPEED_PRESETS } from './ui.js';
 import {
@@ -38,6 +38,7 @@ const REALISTIC_ELEVATION = 60 * DEG;
 const ATLAS_YAW = 0;
 const ATLAS_ELEVATION = 90 * DEG;
 const TRACE_SAMPLES = 520;
+const COMPLETE_TRACE_SAMPLES = 560;
 const TRACE_REBUILD_MS = 150;
 const MAX_SCALE = 180000;
 const MIN_SCALE_FLOOR = 0.04;
@@ -517,13 +518,15 @@ function rebuildTraces(now = performance.now(), force = false) {
   if (!force && traces && Math.abs(state.jd - tracesJd) < 1e-8) return;
   currentPositions = astronomy.getPositions(state.jd);
   try {
-    traces = buildTraces({
+    const completeOrbits = state.trailStyle === 'always';
+    const build = completeOrbits ? buildCompleteOrbitTraces : buildTraces;
+    traces = build({
       jd: state.jd,
       centerId: state.centerId,
       bodies: BODIES,
       getPositions: astronomy.getPositions,
       getPosition: astronomy.getHeliocentricPosition,
-      samples: TRACE_SAMPLES,
+      samples: completeOrbits ? COMPLETE_TRACE_SAMPLES : TRACE_SAMPLES,
     });
     tracesJd = state.jd;
     tracesBuiltAt = now;
@@ -625,7 +628,14 @@ function setMode(mode) {
 
 function setTrailStyle(style) {
   if (style !== 'solid' && style !== 'fading' && style !== 'always') return;
+  if (style === state.trailStyle) return;
   state.trailStyle = style;
+  // Always uses complete closed parent orbits rather than center-relative
+  // trails, so the trace geometry itself changes with the style.
+  traces = null;
+  tracesJd = Number.NaN;
+  rebuildTraces(performance.now(), true);
+  recomputeScaleLimits();
   syncUI();
   writeUrlState();
 }

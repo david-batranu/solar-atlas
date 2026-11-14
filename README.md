@@ -4,7 +4,7 @@
 
 Open the orrery and watch the planets move along their real Keplerian paths. Change the center
 of the view to the Sun, Earth, Jupiter, the Moon, or any other body, and every orbit is
-recomputed around that new anchor. Switch between glowing comet trails, clean solid lines, and always-visible high-contrast orbits,
+recomputed around that new anchor. Switch between glowing comet trails, clean solid lines, and complete, full-brightness orbits,
 scrub the tempo from hours to years per second, and flip into a top-down Atlas that compresses
 distance so all eleven worlds fit in one composed view.
 
@@ -24,8 +24,8 @@ external fonts or images.
 ![Solar Atlas — Atlas view](docs/screenshots/atlas-heliocentric.png)
 *Atlas view: all eleven worlds in one top-down, radially compressed map.*
 
-![Solar Atlas — always-visible orbit style](docs/screenshots/orbits-always.png)
-*Always-visible style: full-brightness orbital paths with a soft halo, readable even where trails would otherwise fade.*
+![Solar Atlas — Always style, Earth-centered](docs/screenshots/orbits-always.png)
+*Always style: each world’s complete orbit is drawn as a closed, full-brightness loop around its parent, translated into the selected center’s frame. Here Earth is the center; no segment fades.*
 
 
 ## Run it
@@ -51,7 +51,7 @@ Node 18+ is recommended. There is no install step.
 | --- | --- |
 | **Center picker** in the left panel | Re-anchor the whole map on the Sun, a planet, Pluto, or the Moon. |
 | **Click a world or its label** | Centre the map on that world. |
-| **Orbit lines: Solid / Fading / Always** | Choose continuous hairline orbits, luminous comet-tail trails, or full-brightness always-visible paths. |
+| **Orbit lines: Solid / Fading / Always** | Continuous hairlines, luminous comet-tail trails, or complete closed orbits at full brightness with no fading. Always shows each world’s full orbit around its parent, translated into the current center’s frame. |
 | **Orbits / Atlas** | Tilted true-scale view, or the top-down radially compressed whole-system map. |
 | **Drag** | Pan the map. |
 | **Shift + drag** | Tilt and rotate the orbit view (locked in Atlas). |
@@ -108,7 +108,7 @@ src/js/ui.js                DOM controller, center picker, transport, modal
 src/js/main.js              application state, time engine, interactions, RAF loop
 scripts/serve.mjs           zero-dependency local static server
 scripts/build-single-file.mjs   dependency-free mini-bundler for dist/solar-atlas.html
-tests/                      41 science, geometry, and camera tests
+tests/                      43 science, geometry, and camera tests
 test/fixtures/              JPL Horizons reference vectors
 CONTRACT.md                 internal engineering contract and module interfaces
 ```
