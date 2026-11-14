@@ -808,6 +808,30 @@ export function createRenderer(canvas) {
         ctx.lineWidth = 5;
         ctx.stroke();
       }
+    } else if (style === 'always') {
+      // Unbroken, high-contrast paths with a soft halo. Unlike Solid, these
+      // are deliberately bright enough to read against the star field even
+      // when several orbits cross; unlike Fading, every segment stays visible.
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < n; i += 1) ctx.lineTo(points[i].x, points[i].y);
+
+      ctx.strokeStyle = body.glow || color;
+      ctx.globalAlpha = hovered ? 0.24 : 0.13;
+      ctx.lineWidth = hovered ? 7 : 5.2;
+      ctx.stroke();
+
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = hovered ? 1 : 0.86;
+      ctx.lineWidth = hovered ? 1.9 : 1.35;
+      ctx.stroke();
+
+      if (hovered) {
+        ctx.strokeStyle = lighten(color, 0.55);
+        ctx.globalAlpha = 0.24;
+        ctx.lineWidth = 0.7;
+        ctx.stroke();
+      }
     } else {
       // For closed or apparent loops, a whisper of the whole path keeps the
       // scale legible while the bright head fades back into the sky.

@@ -538,7 +538,11 @@ export function createUI({ actions }) {
       button.classList.toggle('is-active', active);
       button.setAttribute('aria-pressed', active ? 'true' : 'false');
     }
-    refs.trailHint.textContent = state.trailStyle === 'fading' ? 'comet tails' : 'continuous';
+    refs.trailHint.textContent = state.trailStyle === 'fading'
+      ? 'comet tails'
+      : state.trailStyle === 'always'
+        ? 'always visible'
+        : 'continuous';
 
     // Labels.
     refs.labels.checked = Boolean(state.labels);

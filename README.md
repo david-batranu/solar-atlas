@@ -4,7 +4,7 @@
 
 Open the orrery and watch the planets move along their real Keplerian paths. Change the center
 of the view to the Sun, Earth, Jupiter, the Moon, or any other body, and every orbit is
-recomputed around that new anchor. Switch between glowing comet trails and clean solid lines,
+recomputed around that new anchor. Switch between glowing comet trails, clean solid lines, and always-visible high-contrast orbits,
 scrub the tempo from hours to years per second, and flip into a top-down Atlas that compresses
 distance so all eleven worlds fit in one composed view.
 
@@ -23,6 +23,9 @@ external fonts or images.
 
 ![Solar Atlas — Atlas view](docs/screenshots/atlas-heliocentric.png)
 *Atlas view: all eleven worlds in one top-down, radially compressed map.*
+
+![Solar Atlas — always-visible orbit style](docs/screenshots/orbits-always.png)
+*Always-visible style: full-brightness orbital paths with a soft halo, readable even where trails would otherwise fade.*
 
 
 ## Run it
@@ -48,7 +51,7 @@ Node 18+ is recommended. There is no install step.
 | --- | --- |
 | **Center picker** in the left panel | Re-anchor the whole map on the Sun, a planet, Pluto, or the Moon. |
 | **Click a world or its label** | Centre the map on that world. |
-| **Orbit lines: Solid / Fading** | Choose continuous hairline orbits or luminous comet-tail trails. |
+| **Orbit lines: Solid / Fading / Always** | Choose continuous hairline orbits, luminous comet-tail trails, or full-brightness always-visible paths. |
 | **Orbits / Atlas** | Tilted true-scale view, or the top-down radially compressed whole-system map. |
 | **Drag** | Pan the map. |
 | **Shift + drag** | Tilt and rotate the orbit view (locked in Atlas). |

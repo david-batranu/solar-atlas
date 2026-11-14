@@ -137,7 +137,7 @@ function readInitialUrlState() {
   if (mode === 'atlas' || mode === 'realistic') state.mode = mode;
 
   const trail = params.get('trail');
-  if (trail === 'solid' || trail === 'fading') state.trailStyle = trail;
+  if (trail === 'solid' || trail === 'fading' || trail === 'always') state.trailStyle = trail;
 
   if (params.has('labels')) state.labels = params.get('labels') !== '0';
   if (params.get('paused') === '1' || params.get('paused') === 'true') state.playing = false;
@@ -624,7 +624,7 @@ function setMode(mode) {
 }
 
 function setTrailStyle(style) {
-  if (style !== 'solid' && style !== 'fading') return;
+  if (style !== 'solid' && style !== 'fading' && style !== 'always') return;
   state.trailStyle = style;
   syncUI();
   writeUrlState();

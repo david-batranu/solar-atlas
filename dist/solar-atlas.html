@@ -1145,7 +1145,7 @@ kbd {
 
 .segmented {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 3px;
   padding: 3px;
   border: 1px solid var(--line);
@@ -1156,7 +1156,7 @@ kbd {
 
 .segment {
   min-height: 32px;
-  padding: 0 8px;
+  padding: 0 6px;
   border: 1px solid transparent;
   border-radius: 6px;
   color: var(--ink-muted);
@@ -3607,8 +3607,9 @@ body.reduced-motion .timebar__date .eyebrow::before {
         <span class="micro" id="trail-hint">glowing trails</span>
       </div>
       <div class="segmented" id="trail-switch" role="group" aria-label="Orbit line style">
-        <button class="segment" type="button" data-trail="solid" aria-pressed="false">Solid</button>
-        <button class="segment is-active" type="button" data-trail="fading" aria-pressed="true">Fading</button>
+        <button class="segment" type="button" data-trail="solid" aria-pressed="false" title="Continuous hairline orbits">Solid</button>
+        <button class="segment is-active" type="button" data-trail="fading" aria-pressed="true" title="Comet-tail orbits that fade behind each world">Fading</button>
+        <button class="segment" type="button" data-trail="always" aria-pressed="false" title="Full-brightness orbit lines with a soft glow, always visible">Always</button>
       </div>
     </section>
 
@@ -6583,6 +6584,30 @@ function createRenderer(canvas) {
         ctx.lineWidth = 5;
         ctx.stroke();
       }
+    } else if (style === 'always') {
+      // Unbroken, high-contrast paths with a soft halo. Unlike Solid, these
+      // are deliberately bright enough to read against the star field even
+      // when several orbits cross; unlike Fading, every segment stays visible.
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < n; i += 1) ctx.lineTo(points[i].x, points[i].y);
+
+      ctx.strokeStyle = body.glow || color;
+      ctx.globalAlpha = hovered ? 0.24 : 0.13;
+      ctx.lineWidth = hovered ? 7 : 5.2;
+      ctx.stroke();
+
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = hovered ? 1 : 0.86;
+      ctx.lineWidth = hovered ? 1.9 : 1.35;
+      ctx.stroke();
+
+      if (hovered) {
+        ctx.strokeStyle = lighten(color, 0.55);
+        ctx.globalAlpha = 0.24;
+        ctx.lineWidth = 0.7;
+        ctx.stroke();
+      }
     } else {
       // For closed or apparent loops, a whisper of the whole path keeps the
       // scale legible while the bright head fades back into the sky.
@@ -7382,7 +7407,11 @@ function createUI({ actions }) {
       button.classList.toggle('is-active', active);
       button.setAttribute('aria-pressed', active ? 'true' : 'false');
     }
-    refs.trailHint.textContent = state.trailStyle === 'fading' ? 'comet tails' : 'continuous';
+    refs.trailHint.textContent = state.trailStyle === 'fading'
+      ? 'comet tails'
+      : state.trailStyle === 'always'
+        ? 'always visible'
+        : 'continuous';
 
     // Labels.
     refs.labels.checked = Boolean(state.labels);
@@ -7662,7 +7691,7 @@ function readInitialUrlState() {
   if (mode === 'atlas' || mode === 'realistic') state.mode = mode;
 
   const trail = params.get('trail');
-  if (trail === 'solid' || trail === 'fading') state.trailStyle = trail;
+  if (trail === 'solid' || trail === 'fading' || trail === 'always') state.trailStyle = trail;
 
   if (params.has('labels')) state.labels = params.get('labels') !== '0';
   if (params.get('paused') === '1' || params.get('paused') === 'true') state.playing = false;
@@ -8149,7 +8178,7 @@ function setMode(mode) {
 }
 
 function setTrailStyle(style) {
-  if (style !== 'solid' && style !== 'fading') return;
+  if (style !== 'solid' && style !== 'fading' && style !== 'always') return;
   state.trailStyle = style;
   syncUI();
   writeUrlState();

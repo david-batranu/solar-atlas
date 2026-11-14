@@ -1134,7 +1134,7 @@ kbd {
 
 .segmented {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 3px;
   padding: 3px;
   border: 1px solid var(--line);
@@ -1145,7 +1145,7 @@ kbd {
 
 .segment {
   min-height: 32px;
-  padding: 0 8px;
+  padding: 0 6px;
   border: 1px solid transparent;
   border-radius: 6px;
   color: var(--ink-muted);
