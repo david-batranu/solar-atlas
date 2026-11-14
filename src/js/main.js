@@ -39,7 +39,7 @@ const ATLAS_YAW = 0;
 const ATLAS_ELEVATION = 90 * DEG;
 const TRACE_SAMPLES = 520;
 const COMPLETE_TRACE_SAMPLES = 560;
-const MAX_TRACE_SAMPLES = 900;
+const MAX_TRACE_SAMPLES = 2400;
 const TRAIL_SPAN_OPTIONS = [0.5, 1, 2, 5, 10];
 const TRACE_REBUILD_MS = 150;
 const MAX_SCALE = 180000;
@@ -568,7 +568,7 @@ function rebuildTraces(now = performance.now(), force = false) {
       ? COMPLETE_TRACE_SAMPLES
       : Math.min(
         MAX_TRACE_SAMPLES,
-        Math.round(TRACE_SAMPLES * Math.sqrt(Math.max(1, state.trailSpan))),
+        Math.max(TRACE_SAMPLES, Math.round(220 * Math.max(1, state.trailSpan))),
       );
     traces = build({
       jd: state.jd,
@@ -599,7 +599,8 @@ function maybeRebuildTraces(now) {
     return;
   }
   if (!state.playing) return;
-  if (now - tracesBuiltAt < TRACE_REBUILD_MS) return;
+  const rebuildInterval = state.trailSpan >= 5 ? 250 : TRACE_REBUILD_MS;
+  if (now - tracesBuiltAt < rebuildInterval) return;
   if (Math.abs(state.jd - tracesJd) < 1e-7) return;
   rebuildTraces(now, true);
 }

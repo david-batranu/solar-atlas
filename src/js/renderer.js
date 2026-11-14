@@ -767,6 +767,39 @@ export function createRenderer(canvas) {
     return points;
   }
 
+  /**
+   * Add a smooth Catmull-Rom path through projected trace points.
+   *
+   * Line segments between ephemeris samples are geometrically correct but read
+   * as a visible polygon when a long history packs several loops into a short
+   * arc. This curve still passes through every sample; only the rendered
+   * interpolation between samples is smoothed.
+   */
+  function addTracePath(ctx, points, start = 0, end = points.length - 1, close = false) {
+    ctx.beginPath();
+    if (!Array.isArray(points) || end <= start) return;
+    const first = points[start];
+    ctx.moveTo(first.x, first.y);
+    if (end - start === 1) {
+      const last = points[end];
+      ctx.lineTo(last.x, last.y);
+      return;
+    }
+
+    for (let i = start; i < end; i += 1) {
+      const p0 = points[i > start ? i - 1 : start];
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      const p3 = points[i + 2 <= end ? i + 2 : end];
+      const c1x = p1.x + (p2.x - p0.x) / 6;
+      const c1y = p1.y + (p2.y - p0.y) / 6;
+      const c2x = p2.x - (p3.x - p1.x) / 6;
+      const c2y = p2.y - (p3.y - p1.y) / 6;
+      ctx.bezierCurveTo(c1x, c1y, c2x, c2y, p2.x, p2.y);
+    }
+    if (close) ctx.closePath();
+  }
+
   function drawTrace(ctx, body, points, trace, style, hovered, isLoop = false) {
     let minX = Infinity;
     let minY = Infinity;
@@ -798,9 +831,7 @@ export function createRenderer(canvas) {
     if (style === 'solid') {
       ctx.globalAlpha = hovered ? 0.7 : 0.4;
       ctx.lineWidth = hovered ? 1.7 : 1.1;
-      ctx.beginPath();
-      ctx.moveTo(points[0].x, points[0].y);
-      for (let i = 1; i < n; i += 1) ctx.lineTo(points[i].x, points[i].y);
+      addTracePath(ctx, points);
       ctx.stroke();
 
       if (hovered) {
@@ -812,10 +843,7 @@ export function createRenderer(canvas) {
       // Unbroken, high-contrast paths with a soft halo. Unlike Solid, these
       // are deliberately bright enough to read against the star field even
       // when several orbits cross; unlike Fading, every segment stays visible.
-      ctx.beginPath();
-      ctx.moveTo(points[0].x, points[0].y);
-      for (let i = 1; i < n; i += 1) ctx.lineTo(points[i].x, points[i].y);
-      if (trace?.fullOrbit) ctx.closePath();
+      addTracePath(ctx, points, 0, n - 1, Boolean(trace?.fullOrbit));
 
       ctx.strokeStyle = body.glow || color;
       ctx.globalAlpha = hovered ? 0.26 : 0.14;
@@ -839,9 +867,7 @@ export function createRenderer(canvas) {
       // the oldest end and would otherwise make older positions disappear.
       ctx.globalAlpha = isLoop ? 0.055 : 0.045;
       ctx.lineWidth = 0.85;
-      ctx.beginPath();
-      ctx.moveTo(points[0].x, points[0].y);
-      for (let i = 1; i < n; i += 1) ctx.lineTo(points[i].x, points[i].y);
+      addTracePath(ctx, points);
       ctx.stroke();
 
       const buckets = Math.min(34, Math.max(14, Math.floor(n / 9)));
@@ -850,9 +876,7 @@ export function createRenderer(canvas) {
         const end = Math.min(n - 1, Math.max(start + 1, Math.floor(((b + 1) * (n - 1)) / buckets)));
         if (end <= start) continue;
 
-        ctx.beginPath();
-        ctx.moveTo(points[start].x, points[start].y);
-        for (let i = start + 1; i <= end; i += 1) ctx.lineTo(points[i].x, points[i].y);
+        addTracePath(ctx, points, start, end);
 
         const t = end / Math.max(1, n - 1);
         const supplied = trace && Array.isArray(trace.alphas)
@@ -871,9 +895,7 @@ export function createRenderer(canvas) {
 
       // A faint bloom on the last stretch of the comet tail.
       const bloomStart = Math.max(0, Math.floor(n * 0.9));
-      ctx.beginPath();
-      ctx.moveTo(points[bloomStart].x, points[bloomStart].y);
-      for (let i = bloomStart + 1; i < n; i += 1) ctx.lineTo(points[i].x, points[i].y);
+      addTracePath(ctx, points, bloomStart, n - 1);
       ctx.globalAlpha = hovered ? 0.12 : 0.065;
       ctx.lineWidth = hovered ? 7 : 4.5;
       ctx.stroke();

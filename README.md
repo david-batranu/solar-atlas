@@ -93,6 +93,7 @@ The URL records `center`, `mode`, `trail`, `span`, `labels`, and hidden worlds (
   are the real eccentric, inclined ellipses. In a planet-centric view, positions are differenced
   against the moving center at the same instant, so the trails are the true geocentric /
   areocentric / etc. rosettes and retrograde loops over several synodic periods.
+- **Long history stays curved.** The Span selector scales the ephemeris sampling with the requested history, and trace paths are drawn with a smooth Catmull–Rom interpolation through the samples. This keeps 5× and 10× geocentric rosettes from turning into visible polygons; *Always* ignores Span and renders complete parent orbits.
 - **Atlas mode** is the one deliberate distortion: only the radius is compressed
   (`r' = ln(1 + r / 0.18)`), preserving every angle and orbital shape. A logarithmic scale
   brings Mercury and Neptune into the same frame.
@@ -139,9 +140,10 @@ Atlas compression, camera projection, zoom anchoring, symmetric fitting, and int
 - Full keyboard support, visible focus rings, ARIA labels on all controls, a live region for
   state changes, a focus-trapped help dialog, reduced-motion support, and a skip link.
 - Canvas text is drawn with a dark keyline for contrast; labels use collision-aware placement.
-- Simulation runs at ~60 fps on a 2020-era laptop with 10 orbit traces, fading gradients,
-  labels, and the star field; trace geometry is throttled and bridged to the live planet
-  position between rebuilds.
+- Simulation runs at ~60 fps on a 2020-era laptop at the default history span, with 10 orbit
+  traces, fading gradients, labels, and the star field; trace geometry is throttled and bridged
+  to the live planet position between rebuilds. Long-history modes scale their sampling with
+  the selected Span.
 - Mobile keeps the center picker and orbit-style controls above the stage; the secondary labels
   and reset row is intentionally omitted there to give the map room, while desktop/tablet float
   the full instrument panel.
