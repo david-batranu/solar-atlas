@@ -1,0 +1,29 @@
+{
+  "name": "solar-atlas",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "An interactive, real-time orrery of the Solar System that can be centered on any world.",
+  "scripts": {
+    "start": "node scripts/serve.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "build": "node scripts/build-single-file.mjs"
+  },
+  "keywords": [
+    "solar-system",
+    "orrery",
+    "astronomy",
+    "visualization",
+    "canvas"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/david-batranu/solar-atlas.git"
+  },
+  "homepage": "https://github.com/david-batranu/solar-atlas#readme",
+  "bugs": {
+    "url": "https://github.com/david-batranu/solar-atlas/issues"
+  },
+  "author": "David Bătrânu"
+}

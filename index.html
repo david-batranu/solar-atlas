@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#05070c">
+  <title>Solar Atlas — an interactive orrery</title>
+  <meta name="description" content="A real-time atlas of the Solar System. Follow the true orbits of every planet, switch the center to any world, and watch the system from above.">
+  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./src/css/styles.css">
+</head>
+<body class="is-loading">
+  <a class="skip-link" href="#controls">Skip to controls</a>
+
+  <div class="sky" aria-hidden="true">
+    <div class="sky__nebula sky__nebula--one"></div>
+    <div class="sky__nebula sky__nebula--two"></div>
+    <div class="sky__nebula sky__nebula--three"></div>
+    <div class="sky__grain"></div>
+  </div>
+
+  <main class="stage" aria-label="Solar system map">
+    <canvas id="scene" class="scene" role="img" aria-label="An orbital map of the Solar System, centered on the Sun."></canvas>
+    <div class="vignette" aria-hidden="true"></div>
+  </main>
+
+  <div class="veil" id="veil" aria-hidden="true">
+    <div class="veil__inner">
+      <svg class="veil__mark" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <circle cx="24" cy="24" r="4.2" fill="#f2c56a"/>
+        <ellipse cx="24" cy="24" rx="20" ry="8.5" stroke="#f2c56a" stroke-opacity=".55" transform="rotate(-24 24 24)"/>
+        <circle cx="40.5" cy="15.5" r="1.6" fill="#f2c56a"/>
+      </svg>
+      <p class="veil__kicker">Solving the heavens</p>
+      <span class="veil__line"><i></i></span>
+    </div>
+  </div>
+
+  <header class="masthead">
+    <div class="masthead__brand">
+      <svg class="brand-mark" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <circle cx="24" cy="24" r="3.4" fill="currentColor"/>
+        <ellipse cx="24" cy="24" rx="20" ry="8" stroke="currentColor" stroke-opacity=".55" transform="rotate(-26 24 24)"/>
+        <ellipse cx="24" cy="24" rx="12.5" ry="4.7" stroke="currentColor" stroke-opacity=".28" transform="rotate(-26 24 24)"/>
+        <circle cx="41" cy="14.8" r="1.5" fill="currentColor"/>
+      </svg>
+      <div class="brand__type">
+        <span class="brand__kicker">An interactive orrery</span>
+        <h1 class="brand__title">Solar <em>Atlas</em></h1>
+      </div>
+    </div>
+
+    <div class="masthead__actions">
+      <div class="mode-switch" role="group" aria-label="Projection mode">
+        <button class="mode-btn is-active" type="button" data-mode="realistic" aria-pressed="true" title="True-scale orbits in a tilted, explorable view">
+          <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <circle cx="8" cy="8" r="2" fill="currentColor"/>
+            <ellipse cx="8" cy="8" rx="6.6" ry="3" stroke="currentColor" stroke-width="1.1"/>
+          </svg>
+          <span>Orbits</span>
+        </button>
+        <button class="mode-btn" type="button" data-mode="atlas" aria-pressed="false" title="Top-down, radially compressed view of the whole system">
+          <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <circle cx="8" cy="8" r="1.6" fill="currentColor"/>
+            <circle cx="8" cy="8" r="3.6" stroke="currentColor" stroke-width="1" stroke-opacity=".8"/>
+            <circle cx="8" cy="8" r="6.4" stroke="currentColor" stroke-width="1" stroke-opacity=".45"/>
+          </svg>
+          <span>Atlas</span>
+        </button>
+      </div>
+      <button class="icon-btn" type="button" id="help-open" aria-label="Help and keyboard shortcuts" aria-haspopup="dialog">
+        <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <circle cx="10" cy="10" r="8.2" stroke="currentColor" stroke-width="1.2"/>
+          <path d="M7.8 7.7a2.25 2.25 0 1 1 3.05 2.1c-.62.26-.85.67-.85 1.3v.35" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+          <circle cx="10" cy="14.15" r=".85" fill="currentColor"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <aside class="controls panel" id="controls" aria-label="Orbit controls" tabindex="-1">
+    <section class="control">
+      <div class="control__head">
+        <span class="eyebrow">Center of orbit</span>
+        <span class="micro center-descriptor" id="center-descriptor">Heliocentric</span>
+      </div>
+
+      <div class="center-picker" id="center-picker">
+        <button class="center-button" type="button" id="center-button" aria-haspopup="listbox" aria-expanded="false" aria-controls="center-menu">
+          <span class="center-button__orb" id="center-orb" style="--body-color:#f2c56a"></span>
+          <span class="center-button__text">
+            <span class="center-button__name" id="center-name">Sun</span>
+            <span class="center-button__meta" id="center-type">Star · the system's anchor</span>
+          </span>
+          <svg class="chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M4.5 6.25 8 9.75l3.5-3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+
+        <div class="center-menu" id="center-menu" role="listbox" aria-label="Choose the center of the view" hidden>
+          <div class="center-menu__scroll" id="center-menu-groups"></div>
+          <p class="center-menu__foot">Click a world in the map to center it instantly.</p>
+        </div>
+      </div>
+
+      <p class="center-meta" id="center-meta">Anchor of the solar system</p>
+    </section>
+
+    <section class="control">
+      <div class="control__head">
+        <span class="eyebrow">Orbit lines</span>
+        <span class="micro" id="trail-hint">glowing trails</span>
+      </div>
+      <div class="segmented" id="trail-switch" role="group" aria-label="Orbit line style">
+        <button class="segment" type="button" data-trail="solid" aria-pressed="false">Solid</button>
+        <button class="segment is-active" type="button" data-trail="fading" aria-pressed="true">Fading</button>
+      </div>
+    </section>
+
+    <section class="control control--inline">
+      <label class="switch" for="toggle-labels">
+        <input type="checkbox" id="toggle-labels" checked>
+        <span class="switch__ui" aria-hidden="true"></span>
+        <span>World labels</span>
+      </label>
+      <span class="panel__rule" aria-hidden="true"></span>
+      <button class="text-btn" type="button" id="reset-view">Reset view</button>
+    </section>
+
+    <p class="panel__note" id="mode-note">True distances and inclinations. Drag to pan, scroll to zoom.</p>
+  </aside>
+
+  <aside class="view-controls" aria-label="Zoom and view controls">
+    <button class="view-btn" type="button" id="zoom-in" aria-label="Zoom in">
+      <svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 4v10M4 9h10" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>
+    </button>
+    <button class="view-btn" type="button" id="zoom-out" aria-label="Zoom out">
+      <svg viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M4 9h10" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"/></svg>
+    </button>
+    <span class="view-controls__rule" aria-hidden="true"></span>
+    <button class="view-btn" type="button" id="fit-view" aria-label="Fit all orbits in view" title="Fit all orbits">
+      <svg viewBox="0 0 18 18" fill="none" aria-hidden="true">
+        <path d="M6.5 3H3v3.5M11.5 3H15v3.5M15 11.5V15h-3.5M6.5 15H3v-3.5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </aside>
+
+  <aside class="hover-card" id="hover-card" aria-hidden="true" hidden>
+    <span class="hover-card__dot" id="hover-dot"></span>
+    <span class="hover-card__body">
+      <strong id="hover-name"></strong>
+      <span id="hover-meta"></span>
+    </span>
+    <span class="hover-card__action">click to center</span>
+  </aside>
+
+  <aside class="canvas-hint" id="canvas-hint" aria-label="Map gestures">
+    <span><kbd>Drag</kbd> pan</span>
+    <span><kbd>Shift</kbd> + drag tilt</span>
+    <span><kbd>Scroll</kbd> zoom</span>
+  </aside>
+
+  <footer class="timebar" aria-label="Simulation time controls">
+    <div class="timebar__date">
+      <span class="eyebrow">Simulation epoch <span class="era-badge" id="date-era" hidden>extended model</span></span>
+      <div class="date-line">
+        <time id="date-display" datetime="">14 November 2026</time>
+      </div>
+      <span class="date-sub" id="time-display">11:42 UTC · JD 2461359.0</span>
+    </div>
+
+    <div class="timebar__controls">
+      <button class="transport-btn" type="button" id="reverse" aria-label="Reverse time" aria-pressed="false" title="Reverse time">
+        <svg viewBox="0 0 18 18" fill="none" aria-hidden="true">
+          <path d="M14 5.5v7L8.5 9 14 5.5ZM8.5 5.5v7L3 9l5.5-3.5Z" fill="currentColor"/>
+        </svg>
+      </button>
+
+      <button class="play-btn" type="button" id="play" data-playing="true" aria-label="Pause simulation">
+        <svg class="icon-pause" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M7.2 5.5v9M12.8 5.5v9" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/>
+        </svg>
+        <svg class="icon-play" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M7.2 4.9v10.2L15 10 7.2 4.9Z" fill="currentColor"/>
+        </svg>
+      </button>
+
+      <div class="speed">
+        <div class="speed__head">
+          <label for="speed">Tempo</label>
+          <output id="speed-label" for="speed">5 days / sec</output>
+        </div>
+        <input type="range" id="speed" min="0" max="1000" step="1" value="540" aria-label="Simulation speed" aria-valuetext="5 days per second">
+        <div class="speed-ticks" role="group" aria-label="Speed presets">
+          <button class="speed-tick" type="button" data-days="0.0416667" aria-label="1 hour per second" title="1 hour per second">HR</button>
+          <button class="speed-tick" type="button" data-days="1" aria-label="1 day per second" title="1 day per second">DAY</button>
+          <button class="speed-tick" type="button" data-days="7" aria-label="1 week per second" title="1 week per second">WK</button>
+          <button class="speed-tick" type="button" data-days="30.436875" aria-label="1 month per second" title="1 month per second">MO</button>
+          <button class="speed-tick" type="button" data-days="365.25" aria-label="1 year per second" title="1 year per second">YR</button>
+        </div>
+      </div>
+
+      <button class="ghost-btn" type="button" id="now">Now</button>
+    </div>
+  </footer>
+
+  <div class="help-overlay" id="help-overlay" hidden>
+    <div class="help-scrim" data-close-help></div>
+    <section class="help-card panel" role="dialog" aria-modal="true" aria-labelledby="help-title" aria-describedby="help-intro">
+      <header class="help-card__head">
+        <div>
+          <span class="eyebrow">Field guide</span>
+          <h2 id="help-title">Navigating the atlas</h2>
+        </div>
+        <button class="icon-btn" type="button" id="help-close" aria-label="Close help" data-close-help>
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="m6 6 8 8M14 6l-8 8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </header>
+
+      <p class="help-card__intro" id="help-intro">Move through the solar system at any pace, from any point of view. Every orbit is computed, not drawn by hand.</p>
+
+      <div class="help-grid">
+        <div class="help-row">
+          <span class="shortcut">Click</span>
+          <p>Center the map on a world. The Sun, every planet, Pluto and the Moon are valid centers.</p>
+        </div>
+        <div class="help-row">
+          <span class="shortcut">Drag</span>
+          <p>Pan the map. Hold <kbd>Shift</kbd> while dragging to tilt and rotate. Arrow keys pan; <kbd>Shift</kbd> + arrows tilt.</p>
+        </div>
+        <div class="help-row">
+          <span class="shortcut">Scroll</span>
+          <p>Zoom around the pointer. Pinch with two fingers on a touchscreen.</p>
+        </div>
+        <div class="help-row">
+          <span class="shortcut">Space</span>
+          <p>Pause or resume the simulation. <kbd>F</kbd> fits all orbits, <kbd>A</kbd> switches Atlas, <kbd>R</kbd> resets the view.</p>
+        </div>
+        <div class="help-row">
+          <span class="shortcut">1 — 5</span>
+          <p>Jump between hour, day, week, month and year per second.</p>
+        </div>
+        <div class="help-row">
+          <span class="shortcut">Esc</span>
+          <p>Close menus and dialogs. <kbd>?</kbd> reopens this guide.</p>
+        </div>
+      </div>
+
+      <div class="help-note">
+        <span class="eyebrow">About the model</span>
+        <p>Planetary positions come from JPL's Keplerian elements for the mean ecliptic and equinox of J2000, with Kepler's equation solved for every frame. The Moon uses a truncated lunar theory. Distances in <em>Orbits</em> are true; marker sizes are exaggerated for visibility. <em>Atlas</em> compresses radial distance logarithmically, keeping the orbital angles intact. This is an exploratory orrery, not a precision ephemeris.</p>
+      </div>
+
+      <footer class="help-card__foot">
+        <span class="micro" id="help-model">J2000 epoch · geometric positions</span>
+        <button class="ghost-btn" type="button" data-close-help>Return to the map</button>
+      </footer>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+  <p class="status" id="live-region" aria-live="polite"></p>
+
+  <noscript>
+    <div class="noscript">Solar Atlas needs JavaScript to compute the orbits. Please enable it and reload.</div>
+  </noscript>
+
+  <script type="module" src="./src/js/main.js"></script>
+</body>
+</html>
