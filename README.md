@@ -8,6 +8,8 @@ recomputed around that new anchor. Switch between glowing comet trails and clean
 scrub the tempo from hours to years per second, and flip into a top-down Atlas that compresses
 distance so all eleven worlds fit in one composed view.
 
+**Live site:** [david-batranu.github.io/solar-atlas](https://david-batranu.github.io/solar-atlas/)
+
 Built with vanilla JavaScript and Canvas 2D. No frameworks, no runtime dependencies, no
 external fonts or images.
 
