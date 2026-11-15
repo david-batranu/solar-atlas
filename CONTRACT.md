@@ -10,11 +10,13 @@ Target: 60fps on a laptop, graceful on mobile. No external runtime assets or fon
   Neptune, Pluto. Heliocentric on first load. The center body sits at the origin.
 - Orbit trail style: **solid**, **fading** (alpha increases toward the body's current position), or **always** (complete closed parent orbit in the selected center’s frame, uniform full brightness).
 - Simulation time speed: play/pause, reverse, log speed control, speed presets, "now".
-- Zoom in/out (wheel, pinch, buttons, fit view) and pan; a true top-down **Atlas** mode that
-  compresses radial distance so the entire system is legible at once.
+- Zoom in/out (wheel, pinch, buttons, fit view) and pan; a top-down, true-scale **Elliptic**
+  mode with complete closed ellipses, and a top-down **Atlas** mode that compresses radial
+  distance so the entire system is legible at once. Elliptic uses complete parent-orbit geometry
+  regardless of the last Solid/Fading style, and hides those controls plus Span.
 - Every non-center world can be hidden independently; hiding removes its marker, label and orbit trace and excludes it from Fit. The center world always remains visible. Persist the set in the URL as `hide=<comma-separated ids>`.
 - Solid and Fading history is user-adjustable from 0.5× to 50× the base trace window (`span` URL parameter); Always ignores the multiplier and draws complete parent orbits. Fading keeps a faint guide across the full selected history. Hovering an orbit segment shows its body and UTC date/time.
-- Orbit lines / labels remain performant and legible in every center and in Atlas.
+- Orbit lines / labels remain performant and legible in every center and in Elliptic/Atlas.
 
 ## Files and ownership
 
@@ -22,7 +24,7 @@ Target: 60fps on a laptop, graceful on mobile. No external runtime assets or fon
 |---|---|---|
 | `index.html`, `src/js/{main,camera,renderer,ui}.js` | lead | integration, rendering, controls |
 | `src/js/data.js`, `src/js/ephemeris.js`, `tests/ephemeris.test.mjs` | astro-model | science engine |
-| `src/js/orbits.js`, `tests/orbits.test.mjs` | orbit-engine | relative traces + atlas mapping |
+| `src/js/orbits.js`, `tests/orbits.test.mjs` | orbit-engine | relative traces + elliptic/atlas mapping |
 | `src/css/styles.css`, `assets/favicon.svg` | visual-design | presentation only |
 | `tests/qa*`, `qa/*` | qa-verifier | browser verification |
 
@@ -149,7 +151,7 @@ The final markup lives in `index.html` (lead-owned). Style these, do not rename:
 - `.view-controls`, `.view-btn`, `.hover-card`, `.help-overlay`, `.help-card`, `.help-row`,
   `.shortcut`, `.toast`, `.status` (visually hidden live region)
 - State classes: `.is-active`, `.is-open`, `.is-paused`, `[hidden]`, `[aria-pressed="true"]`,
-  `body.is-atlas`, `body.is-loading`, `.reduced-motion`.
+  `body.is-atlas`, `body.is-elliptic`, `body.is-loading`, `.reduced-motion`.
 - Custom properties for the palette; system font stacks only. The canvas is full-bleed;
   controls float above it. Plan around 1440×900 and 390×844. Play button + speed slider must
   be comfortable on touch. No horizontal scrolling.

@@ -53,14 +53,21 @@
 
     <div class="masthead__actions">
       <div class="mode-switch" role="group" aria-label="Projection mode">
-        <button class="mode-btn is-active" type="button" data-mode="realistic" aria-pressed="true" title="True-scale orbits in a tilted, explorable view">
+        <button class="mode-btn is-active" type="button" data-mode="realistic" aria-pressed="true" aria-label="Orbits: tilted true-scale view" title="True-scale orbits in a tilted, explorable view">
           <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <circle cx="8" cy="8" r="2" fill="currentColor"/>
             <ellipse cx="8" cy="8" rx="6.6" ry="3" stroke="currentColor" stroke-width="1.1"/>
           </svg>
           <span>Orbits</span>
         </button>
-        <button class="mode-btn" type="button" data-mode="atlas" aria-pressed="false" title="Top-down, radially compressed view of the whole system">
+        <button class="mode-btn" type="button" data-mode="elliptic" aria-pressed="false" aria-label="Elliptic: top-down true-scale view with complete ellipses" title="Top-down true-scale view of the real, complete elliptical orbits">
+          <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <ellipse cx="8" cy="8" rx="6.4" ry="4.1" stroke="currentColor" stroke-width="1.1"/>
+            <circle cx="10.2" cy="8" r="1.35" fill="currentColor"/>
+          </svg>
+          <span>Elliptic</span>
+        </button>
+        <button class="mode-btn" type="button" data-mode="atlas" aria-pressed="false" aria-label="Atlas: top-down compressed view of the whole system" title="Top-down, radially compressed view of the whole system">
           <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <circle cx="8" cy="8" r="1.6" fill="currentColor"/>
             <circle cx="8" cy="8" r="3.6" stroke="currentColor" stroke-width="1" stroke-opacity=".8"/>
@@ -109,7 +116,7 @@
 
     <section class="control control--orbits">
       <div class="control__head">
-        <span class="eyebrow">Orbit lines</span>
+        <span class="eyebrow" id="orbit-control-label">Orbit lines</span>
         <span class="control__head-right">
           <label class="trail-span" id="trail-span-control" title="How much past orbit history Solid and Fading draw. Longer spans keep older positions visible.">
             <span class="trail-span__label">Span</span>
@@ -279,7 +286,7 @@
         </div>
         <div class="help-row">
           <span class="shortcut">Drag</span>
-          <p>Pan the map. Hold <kbd>Shift</kbd> while dragging to tilt and rotate. Arrow keys pan; <kbd>Shift</kbd> + arrows tilt.</p>
+          <p>Pan the map. In Orbits, hold <kbd>Shift</kbd> while dragging to tilt and rotate. Arrow keys pan; <kbd>Shift</kbd> + arrows tilt in Orbits.</p>
         </div>
         <div class="help-row">
           <span class="shortcut">Scroll</span>
@@ -290,8 +297,12 @@
           <p>Point at any orbit line to see the UTC date and time when that body occupied that spot. Dates remain readable on the faded part of a long trail.</p>
         </div>
         <div class="help-row">
+          <span class="shortcut">Modes</span>
+          <p><strong>Orbits</strong> is a tilted, explorable true-scale view. <strong>Elliptic</strong> is top-down at true scale with complete elliptical orbits and no radial compression. <strong>Atlas</strong> compresses radial distance to fit the whole system.</p>
+        </div>
+        <div class="help-row">
           <span class="shortcut">Space</span>
-          <p>Pause or resume the simulation. <kbd>F</kbd> fits all orbits, <kbd>A</kbd> switches Atlas, <kbd>R</kbd> resets the view.</p>
+          <p>Pause or resume the simulation. <kbd>F</kbd> fits all orbits, <kbd>A</kbd> switches Atlas, <kbd>E</kbd> switches Elliptic, <kbd>R</kbd> resets the view.</p>
         </div>
         <div class="help-row">
           <span class="shortcut">1 — 5</span>
@@ -299,7 +310,7 @@
         </div>
         <div class="help-row">
           <span class="shortcut">Worlds</span>
-          <p>Use <strong>Worlds</strong> beside Orbit lines to show or hide markers, labels and orbit lines. The center world always stays visible. Press <kbd>V</kbd> to open it.</p>
+          <p>Use <strong>Worlds</strong> beside the orbit heading to show or hide markers, labels and orbit lines. The center world always stays visible. Press <kbd>V</kbd> to open it.</p>
         </div>
         <div class="help-row">
           <span class="shortcut">Span</span>

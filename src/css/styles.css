@@ -583,6 +583,19 @@ kbd {
   color: var(--blue-bright);
 }
 
+/* Elliptic is the true-scale, top-down projection. */
+.mode-btn[data-mode="elliptic"][aria-pressed="true"],
+.mode-btn[data-mode="elliptic"].is-active {
+  border-color: rgba(184, 220, 199, 0.28);
+  background: linear-gradient(180deg, rgba(184, 220, 199, 0.16), rgba(184, 220, 199, 0.055));
+  color: #e9f4ed;
+}
+
+.mode-btn[data-mode="elliptic"][aria-pressed="true"] svg,
+.mode-btn[data-mode="elliptic"].is-active svg {
+  color: #c0e2cd;
+}
+
 .icon-btn {
   display: grid;
   flex: none;
@@ -1891,8 +1904,15 @@ body.is-paused .play-btn .icon-play {
   text-transform: uppercase;
 }
 
-/* Atlas locks tilt, so the tilt instruction is a lie in that mode. */
-body.is-atlas .canvas-hint span:nth-child(2) {
+/* Atlas and Elliptic lock tilt, so the tilt instruction is a lie there. */
+body.is-atlas .canvas-hint span:nth-child(2),
+body.is-elliptic .canvas-hint span:nth-child(2) {
+  display: none;
+}
+
+/* Elliptic always uses complete orbit ellipses; those two controls do not apply. */
+body.is-elliptic .trail-span,
+body.is-elliptic #trail-switch {
   display: none;
 }
 
@@ -3395,6 +3415,28 @@ body.reduced-motion .timebar__date .eyebrow::before {
   .panel::before,
   .timebar::before {
     opacity: 0.8;
+  }
+}
+
+
+/* Three projection names need more room than two; use their icons on phones. */
+@media (max-width: 560px) {
+  .mode-btn {
+    width: 36px;
+    padding-inline: 0;
+  }
+
+  .mode-btn span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
   }
 }
 

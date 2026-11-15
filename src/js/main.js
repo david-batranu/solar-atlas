@@ -41,6 +41,7 @@ const TRACE_SAMPLES = 520;
 const COMPLETE_TRACE_SAMPLES = 560;
 const MAX_TRACE_SAMPLES = 3200;
 const TRAIL_SPAN_OPTIONS = [0.5, 1, 2, 5, 10, 20, 50];
+const MODES = ['realistic', 'elliptic', 'atlas'];
 const TRACE_REBUILD_MS = 150;
 const MAX_SCALE = 180000;
 const MIN_SCALE_FLOOR = 0.04;
@@ -145,7 +146,7 @@ function readInitialUrlState() {
   if (centerId && Object.hasOwn(BY_ID, centerId)) state.centerId = centerId;
 
   const mode = params.get('mode');
-  if (mode === 'atlas' || mode === 'realistic') state.mode = mode;
+  if (MODES.includes(mode)) state.mode = mode;
 
   const trail = params.get('trail');
   if (trail === 'solid' || trail === 'fading' || trail === 'always') state.trailStyle = trail;
@@ -441,10 +442,11 @@ function targetBlendForMode(mode = state.mode) {
 function recomputeScaleLimits() {
   if (visibleBodyCount() <= 1) return;
   const points = collectFitPoints(targetBlendForMode());
+  const topDown = state.mode === 'atlas' || state.mode === 'elliptic';
   const base = {
     ...camera,
-    elevation: state.mode === 'atlas' ? ATLAS_ELEVATION : camera.elevation,
-    yaw: state.mode === 'atlas' ? ATLAS_YAW : camera.yaw,
+    elevation: topDown ? ATLAS_ELEVATION : camera.elevation,
+    yaw: topDown ? ATLAS_YAW : camera.yaw,
   };
   const fit = fitCamera(base, points, viewport, getSafeInsets(), {
     padding: 42,
@@ -475,6 +477,21 @@ function atlasFitGoal() {
 
 function realisticFitAllGoal() {
   return fitCamera(camera, collectFitPoints(0), viewport, getSafeInsets(), {
+    padding: 44,
+    minScale: MIN_SCALE_FLOOR,
+    maxScale: MAX_SCALE,
+  });
+}
+
+function ellipticFitAllGoal() {
+  const base = createCamera({
+    yaw: ATLAS_YAW,
+    elevation: ATLAS_ELEVATION,
+    scale: Math.max(camera.scale, 30),
+    panX: camera.panX,
+    panY: camera.panY,
+  });
+  return fitCamera(base, collectFitPoints(0), viewport, getSafeInsets(), {
     padding: 44,
     minScale: MIN_SCALE_FLOOR,
     maxScale: MAX_SCALE,
@@ -530,6 +547,7 @@ function plannedOrientation() {
 
 function goalForCenterChange() {
   if (state.mode === 'atlas') return atlasFitGoal();
+  if (state.mode === 'elliptic') return ellipticFitAllGoal();
   const orientation = plannedOrientation();
   return focusedGoal(orientation);
 }
@@ -551,7 +569,11 @@ function fitView() {
     return;
   }
   hideHover();
-  const goal = state.mode === 'atlas' ? atlasFitGoal() : realisticFitAllGoal();
+  const goal = state.mode === 'atlas'
+    ? atlasFitGoal()
+    : state.mode === 'elliptic'
+      ? ellipticFitAllGoal()
+      : realisticFitAllGoal();
   recomputeScaleLimits();
   animateCameraTo(goal, 680);
   writeUrlState();
@@ -559,11 +581,17 @@ function fitView() {
 
 /* ------------------------------------------------------------------- traces */
 
+// Elliptic is a dedicated true-ellipse view: it always uses complete orbit
+// paths, even if the last Orbits/Atlas line style was Solid or Fading.
+function effectiveTrailStyle() {
+  return state.mode === 'elliptic' ? 'always' : state.trailStyle;
+}
+
 function rebuildTraces(now = performance.now(), force = false) {
   if (!force && traces && Math.abs(state.jd - tracesJd) < 1e-8) return;
   currentPositions = astronomy.getPositions(state.jd);
   try {
-    const completeOrbits = state.trailStyle === 'always';
+    const completeOrbits = effectiveTrailStyle() === 'always';
     const build = completeOrbits ? buildCompleteOrbitTraces : buildTraces;
     const samples = completeOrbits
       ? COMPLETE_TRACE_SAMPLES
@@ -655,31 +683,53 @@ function setCenter(id, options = {}) {
 }
 
 function setMode(mode) {
-  if (mode !== 'atlas' && mode !== 'realistic') return;
-  if (mode === state.mode) return;
+  if (!MODES.includes(mode) || mode === state.mode) return;
 
   hideHover();
+  const previous = state.mode;
+  const outgoing = cloneCamera(cameraTween ? cameraTween.to : camera);
+
+  // Remember a curated Orbits pose whenever we leave it. Elliptic and Atlas
+  // are both top-down; returning to Orbits should restore the tilted view.
+  if (previous === 'realistic') savedRealisticCamera = outgoing;
+
+  state.mode = mode;
+
+  // Elliptic uses complete parent ellipses regardless of the chosen trail
+  // style. Entering or leaving it therefore needs a fresh trace build.
+  const geometryChanged = (previous === 'elliptic') !== (mode === 'elliptic');
+  if (geometryChanged) {
+    traces = null;
+    tracesJd = Number.NaN;
+    rebuildTraces(performance.now(), true);
+  }
+  recomputeScaleLimits();
+
+  let goal;
+  let duration = 880;
 
   if (mode === 'atlas') {
-    // If a center animation is mid-flight, remember its destination rather
-    // than a transient pose, so exiting Atlas returns to a curated view.
-    savedRealisticCamera = cloneCamera(cameraTween ? cameraTween.to : camera);
-    state.mode = 'atlas';
-    recomputeScaleLimits();
-    const goal = atlasFitGoal();
-    animateCameraTo(goal, 900);
+    goal = atlasFitGoal();
+    duration = 900;
     startAtlasBlend(1, 900);
     ui.announce('Atlas view. Distances are compressed for a top-down map of the whole system.');
+  } else if (mode === 'elliptic') {
+    // Frame the whole true-scale system so the complete ellipses read as
+    // ellipses. Unlike Atlas, nothing is radially compressed; zoom in for
+    // detail on the inner worlds.
+    goal = ellipticFitAllGoal();
+    duration = 900;
+    startAtlasBlend(0, 900);
+    ui.announce('Elliptic view. True scale, complete elliptical orbits, top-down.');
   } else {
-    state.mode = 'realistic';
-    const goal = savedRealisticCamera || defaultRealisticGoal({ defaultTilt: true });
-    recomputeScaleLimits();
-    animateCameraTo(goal, 860);
-    startAtlasBlend(0, 820);
+    goal = savedRealisticCamera || defaultRealisticGoal({ defaultTilt: true });
     savedRealisticCamera = null;
+    duration = 860;
+    startAtlasBlend(0, 820);
     ui.announce('Orbit view. True distances and inclinations restored.');
   }
 
+  animateCameraTo(goal, duration);
   syncUI();
   writeUrlState();
 }
@@ -805,7 +855,7 @@ function setNow() {
 
 function resetView() {
   hideHover();
-  const wasAtlas = state.mode === 'atlas';
+  const wasTopDown = state.mode === 'atlas' || state.mode === 'elliptic';
   state.centerId = 'sun';
   state.mode = 'realistic';
   state.trailStyle = 'fading';
@@ -820,7 +870,7 @@ function resetView() {
 
   const goal = defaultRealisticGoal();
   animateCameraTo(goal, 820);
-  startAtlasBlend(0, wasAtlas ? 820 : 0);
+  startAtlasBlend(0, wasTopDown ? 820 : 0);
   syncUI();
   writeUrlState();
   ui.showToast('View reset: heliocentric, all worlds visible, comet tails.');
@@ -1249,6 +1299,11 @@ document.addEventListener('keydown', (event) => {
       event.preventDefault();
       setMode(state.mode === 'atlas' ? 'realistic' : 'atlas');
       break;
+    case 'e':
+    case 'E':
+      event.preventDefault();
+      setMode(state.mode === 'elliptic' ? 'realistic' : 'elliptic');
+      break;
     case 'r':
     case 'R':
       event.preventDefault();
@@ -1344,7 +1399,7 @@ function handleResize() {
       camera.panY = nextArea.centerY - viewport.height * 0.5 + stageOffsetY;
     }
 
-    if (state.mode === 'atlas') {
+    if (state.mode === 'atlas' || state.mode === 'elliptic') {
       camera.yaw = ATLAS_YAW;
       camera.elevation = ATLAS_ELEVATION;
     } else if (camera.elevation > 89.5 * DEG) {
@@ -1384,7 +1439,7 @@ function drawFrame(now) {
     centerId: state.centerId,
     hiddenBodies: state.hiddenBodies,
     avoidRects: chromeRects,
-    trailStyle: state.trailStyle,
+    trailStyle: effectiveTrailStyle(),
     showLabels: state.labels,
     hoveredId: state.hoveredId,
     reducedMotion: REDUCED_MOTION,
@@ -1430,6 +1485,10 @@ function boot() {
     atlas.blend = 1;
     atlas.tween = null;
     camera = atlasFitGoal();
+  } else if (state.mode === 'elliptic') {
+    atlas.blend = 0;
+    atlas.tween = null;
+    camera = ellipticFitAllGoal();
   } else {
     atlas.blend = 0;
     camera = focusedGoal({ defaultTilt: true });
@@ -1448,7 +1507,7 @@ function boot() {
     getState: () => ({
       centerId: state.centerId,
       mode: state.mode,
-      trailStyle: state.trailStyle,
+      trailStyle: effectiveTrailStyle(),
       trailSpan: state.trailSpan,
       labels: state.labels,
       playing: state.playing,
@@ -1502,7 +1561,7 @@ function boot() {
     getSceneSummary: () => ({
       centerId: state.centerId,
       mode: state.mode,
-      trailStyle: state.trailStyle,
+      trailStyle: effectiveTrailStyle(),
       trailSpan: state.trailSpan,
       atlasBlend: atlas.blend,
       camera: { ...camera },

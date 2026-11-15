@@ -175,6 +175,7 @@ export function createUI({ actions }) {
     labels: $('#toggle-labels'),
     resetView: $('#reset-view'),
     modeNote: $('#mode-note'),
+    orbitControlLabel: $('#orbit-control-label'),
     modeButtons: Array.from(document.querySelectorAll('[data-mode]')),
     trailButtons: Array.from(document.querySelectorAll('[data-trail]')),
     zoomIn: $('#zoom-in'),
@@ -644,23 +645,33 @@ export function createUI({ actions }) {
       button.setAttribute('aria-pressed', active ? 'true' : 'false');
     }
     refs.body.classList.toggle('is-atlas', state.mode === 'atlas');
+    refs.body.classList.toggle('is-elliptic', state.mode === 'elliptic');
+    if (refs.orbitControlLabel) {
+      refs.orbitControlLabel.textContent = state.mode === 'elliptic'
+        ? 'Elliptic orbits'
+        : 'Orbit lines';
+    }
     refs.modeNote.textContent = state.mode === 'atlas'
       ? 'Radial distance compressed · top-down. Every world in one frame.'
-      : center.id === 'sun'
-        ? 'True distances & inclinations. Atlas frames every world at once.'
-        : `${center.name}-centered view. True distances; Fit reveals the whole system.`;
+      : state.mode === 'elliptic'
+        ? 'True distances, true ellipses · top-down. No radial compression.'
+        : center.id === 'sun'
+          ? 'True distances & inclinations. Elliptic and Atlas are top-down.'
+          : `${center.name}-centered view. True distances; Fit reveals the whole system.`;
 
     // Orbit style.
+    if (refs.trailSwitch) refs.trailSwitch.hidden = state.mode === 'elliptic';
     for (const button of refs.trailButtons) {
       const active = button.dataset.trail === state.trailStyle;
       button.classList.toggle('is-active', active);
       button.setAttribute('aria-pressed', active ? 'true' : 'false');
     }
     const always = state.trailStyle === 'always';
-    refs.trailSpanControl.hidden = always;
+    const hidesSpan = always || state.mode === 'elliptic';
+    refs.trailSpanControl.hidden = hidesSpan;
     refs.trailSpan.value = String(state.trailSpan);
-    refs.trailSpanControl.classList.toggle('is-custom', !always && state.trailSpan !== 1);
-    refs.trailSpanControl.title = always
+    refs.trailSpanControl.classList.toggle('is-custom', !hidesSpan && state.trailSpan !== 1);
+    refs.trailSpanControl.title = hidesSpan
       ? 'Always shows complete orbits.'
       : `${state.trailSpan}× history for Solid and Fading trails.`;
 
@@ -717,7 +728,7 @@ export function createUI({ actions }) {
     if (refs.canvas) {
       refs.canvas.setAttribute(
         'aria-label',
-        `Orbital map of the Solar System centered on ${center.name}, shown in ${state.mode === 'atlas' ? 'top-down atlas' : 'tilted orbit'} view. ${state.playing ? 'Simulation running' : 'Simulation paused'} at ${formatSpeed(state.speedDaysPerSec)}. ${visibleCount} of ${BODIES.length} worlds visible.`,
+        `Orbital map of the Solar System centered on ${center.name}, shown in ${state.mode === 'atlas' ? 'top-down compressed atlas' : state.mode === 'elliptic' ? 'top-down true-scale elliptic' : 'tilted orbit'} view. ${state.playing ? 'Simulation running' : 'Simulation paused'} at ${formatSpeed(state.speedDaysPerSec)}. ${visibleCount} of ${BODIES.length} worlds visible.`,
       );
     }
   }
