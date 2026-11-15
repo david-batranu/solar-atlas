@@ -13,6 +13,9 @@ export const SPEED_MAX = 365.25; // one year per real second
 export const DEFAULT_SPEED = 5; // five days per real second
 export const SPEED_PRESETS = [1 / 24, 1, 7, 30.436875, 365.25];
 
+const RELATIVE_HISTORY_VALUES = [0.5, 1, 2, 5, 10, 20, 50];
+const FIXED_HISTORY_YEARS = [1, 10, 50, 200];
+
 const KIND_LABEL = {
   star: 'Star',
   planet: 'Planet',
@@ -148,6 +151,9 @@ function centerButtonMeta(body) {
 }
 
 export function createUI({ actions }) {
+  let currentHistoryMode = 'relative';
+  let renderedHistoryMode = null;
+
   const refs = {
     body: document.body,
     canvas: $('#scene'),
@@ -162,8 +168,9 @@ export function createUI({ actions }) {
     centerMenu: $('#center-menu'),
     centerGroups: $('#center-menu-groups'),
     trailSwitch: $('#trail-switch'),
-    trailSpanControl: $('#trail-span-control'),
-    trailSpan: $('#trail-span'),
+    historyControl: $('#history-control'),
+    historyModeButtons: Array.from(document.querySelectorAll('[data-history-mode]')),
+    historyValue: $('#history-value'),
     worldsOpen: $('#worlds-open'),
     worldsCount: $('#worlds-count'),
     worldsDialog: $('#worlds-dialog'),
@@ -634,6 +641,21 @@ export function createUI({ actions }) {
     }
   }
 
+  function renderHistoryOptions(mode) {
+    const entries = mode === 'fixed'
+      ? FIXED_HISTORY_YEARS.map((years) => [
+        String(years),
+        years === 1 ? '1 year' : `${years} years`,
+      ])
+      : RELATIVE_HISTORY_VALUES.map((value) => [String(value), `${value}×`]);
+    refs.historyValue.replaceChildren(...entries.map(([value, label]) => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      return option;
+    }));
+  }
+
   function sync(state) {
     const center = BODIES.find((body) => body.id === state.centerId) || BODIES[0];
 
@@ -676,12 +698,26 @@ export function createUI({ actions }) {
       button.setAttribute('aria-pressed', active ? 'true' : 'false');
     }
     const always = state.trailStyle === 'always';
-    refs.trailSpanControl.hidden = always;
-    refs.trailSpan.value = String(state.trailSpan);
-    refs.trailSpanControl.classList.toggle('is-custom', !always && state.trailSpan !== 1);
-    refs.trailSpanControl.title = always
+    const historyMode = state.historyMode === 'fixed' ? 'fixed' : 'relative';
+    currentHistoryMode = historyMode;
+    refs.historyControl.hidden = always;
+    for (const button of refs.historyModeButtons) {
+      const active = button.dataset.historyMode === historyMode;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+    }
+    if (renderedHistoryMode !== historyMode) {
+      renderHistoryOptions(historyMode);
+      renderedHistoryMode = historyMode;
+    }
+    refs.historyValue.value = String(
+      historyMode === 'fixed' ? state.historyYears : state.trailSpan
+    );
+    refs.historyControl.title = always
       ? 'Always shows complete orbits.'
-      : `${state.trailSpan}× history for Solid and Fading trails.`;
+      : historyMode === 'fixed'
+        ? `Fixed ${state.historyYears}-year window for every visible world.`
+        : 'Relative windows: multiples of each body\'s automatic history.';
 
     // Labels.
     refs.labels.checked = Boolean(state.labels);
@@ -794,8 +830,14 @@ export function createUI({ actions }) {
       button.addEventListener('click', () => actions.setTrailStyle(button.dataset.trail));
     }
 
-    refs.trailSpan.addEventListener('change', () => {
-      actions.setTrailSpan(Number(refs.trailSpan.value));
+    for (const button of refs.historyModeButtons) {
+      button.addEventListener('click', () => actions.setHistoryMode(button.dataset.historyMode));
+    }
+
+    refs.historyValue.addEventListener('change', () => {
+      const value = Number(refs.historyValue.value);
+      if (currentHistoryMode === 'fixed') actions.setHistoryYears(value);
+      else actions.setTrailSpan(value);
     });
 
     refs.worldsOpen.addEventListener('click', () => openWorldsDialog());

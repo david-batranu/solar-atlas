@@ -4,7 +4,7 @@
 
 Open the orrery and watch the planets move along their real Keplerian paths. Change the center
 of the view to the Sun, Earth, Jupiter, the Moon, or any other body, and every orbit is
-recomputed around that new anchor. Switch between glowing comet trails, clean solid lines, and complete, full-brightness orbits, stretch the trail history from half to fifty times its default span,
+recomputed around that new anchor. Switch between glowing comet trails, clean solid lines, and complete, full-brightness orbits, choose a relative trail multiplier or a fixed 1, 10, 50 or 200-year history,
 scrub the tempo from hours to years per second, and switch between a top-down, true-scale Overview view — with the same line styles as
 Orbits — and an Atlas that compresses distance so all eleven worlds fit in one composed view.
 
@@ -22,7 +22,7 @@ external fonts or images. Every world can be shown or hidden independently, incl
 *The same moment centered on Earth: the apparent solar path and the inner worlds' geocentric rosettes.*
 
 ![Solar Atlas — Overview view](docs/screenshots/overview-heliocentric.png)
-*Overview view: top-down at true scale with no radial compression. This preview uses Fading at 5× span; Solid and Always work here exactly as they do in Orbits.*
+*Overview view: top-down at true scale with no radial compression. This preview uses Fading with a 5× relative history; Solid, Always and fixed-year windows work here too.*
 
 ![Solar Atlas — Atlas view](docs/screenshots/atlas-heliocentric.png)
 *Atlas view: all eleven worlds in one top-down, radially compressed map.*
@@ -34,7 +34,10 @@ external fonts or images. Every world can be shown or hidden independently, incl
 *An Earth-centered view reduced to just Earth and Venus. The Worlds control hides each world’s marker, label and orbit; the center world stays visible.*
 
 ![Solar Atlas — five times the default trail history](docs/screenshots/orbits-history-5x.png)
-*Five times the default history in an Earth-centered Fading view. The Span selector stretches the trail window, and Fading leaves a faint guide over the whole span so older positions remain visible.*
+*Relative 5× history in an Earth-centered Fading view. The History control stretches the trail window, and Fading leaves a faint guide over the whole span so older positions remain visible.*
+
+![Solar Atlas — fixed 50-year history](docs/screenshots/history-fixed-50-years.png)
+*Fixed 50 years gives every world the same history window. Inner planets complete many laps, Jupiter completes about four, and Pluto only a fifth of one orbit.*
 
 ![Orbit point date tooltip](docs/screenshots/orbit-date-tooltip.png)
 *Hovering any orbit line reveals the exact UTC date and time at that position, even on faded history.*
@@ -72,8 +75,8 @@ Node 18+ is recommended. There is no install step.
 | **Hover or tap an orbit point** | See the body and the UTC date/time it occupied that point. On touch, tap the line; tap elsewhere to dismiss. |
 | **Orbit lines: Solid / Fading / Always** | Continuous hairlines, luminous comet-tail trails, or complete closed orbits at full brightness with no fading. Always shows each world’s full orbit around its parent, translated into the current center’s frame. Available in Orbits, Overview and Atlas. |
 | **Visible worlds** | Open **Worlds** beside Orbit lines to show or hide any world’s marker, label and orbit. Use **Center only** to clear the field, then tick the worlds you want. The center world is always visible. |
-| **Span** beside Orbit lines | Stretch or shorten the Solid/Fading history from 0.5× to 50× its default window. Longer spans keep older positions available; Fading adds a faint guide across the whole window so its oldest end does not disappear. |
-| **Orbits / Overview / Atlas** | Tilted true-scale view; top-down true-scale view with no radial compression; or the top-down radially compressed whole-system map. Overview uses the same line style and Span controls as Orbits. |
+| **History: Relative / Fixed** | Relative stretches or shortens the Solid/Fading history from 0.5× to 50× each body's automatic window. Fixed gives every world the same 1, 10, 50 or 200-year window, so travel over that period is directly comparable. Always ignores History. |
+| **Orbits / Overview / Atlas** | Tilted true-scale view; top-down true-scale view with no radial compression; or the top-down radially compressed whole-system map. Overview uses the same line styles and History controls as Orbits. |
 | **Drag** | Pan the map. |
 | **Shift + drag** (desktop) / **two-finger drag** (touch) | Tilt and rotate the orbit view in Orbits (locked in Overview and Atlas). Pinch to zoom. |
 | **Scroll / pinch** | Zoom toward the pointer or pinch center. |
@@ -85,7 +88,7 @@ Node 18+ is recommended. There is no install step.
 
 Keyboard: `Space` play/pause · `F` fit · `A` toggle Atlas · `O` toggle Overview · `V` visible worlds · `R` reset · `1`–`5` hour/day/week/month/year per second · `+`/`-` zoom · arrows pan · `Shift`+arrows tilt · `?` or `H` help · `Esc` close.
 
-The URL records `center`, `mode`, `trail`, `span`, `labels`, and hidden worlds (`hide=mercury,jupiter`), so any view can be shared. `mode=overview` selects the top-down true-scale view; the earlier `mode=elliptic` links still map to it. Add `date=2025-01-01T00:00:00Z` or `paused=1` for a fixed scene.
+The URL records `center`, `mode`, `trail`, `history`, `years`, `span`, `labels`, and hidden worlds (`hide=mercury,jupiter`), so any view can be shared. `history=fixed&years=50` selects the common 50-year window; relative links keep `span=10` style values. `mode=overview` selects the top-down true-scale view; earlier `mode=elliptic` links still map to it. Add `date=2025-01-01T00:00:00Z` or `paused=1` for a fixed scene.
 
 ## Orbit model
 
@@ -102,8 +105,8 @@ The URL records `center`, `mode`, `trail`, `span`, `labels`, and hidden worlds (
   are the real eccentric, inclined ellipses. In a planet-centric view, positions are differenced
   against the moving center at the same instant, so the trails are the true geocentric /
   areocentric / etc. rosettes and retrograde loops over several synodic periods.
-- **Long history stays curved.** The Span selector scales the ephemeris sampling with the requested history, and trace paths are drawn with a smooth Catmull–Rom interpolation through the samples. This keeps extended 5×–50× geocentric rosettes from turning into visible polygons; *Always* ignores Span and renders complete parent orbits.
-- **Overview mode** is top-down at true scale, with no radial compression, and keeps the same Solid/Fading/Always and Span behavior as Orbits. Use *Always* for the complete Keplerian ellipses; in heliocentric view the Sun sits at one focus, and in a planet-centered view the same parent ellipses are translated into that center’s frame. Fit shows the whole true-scale system, but the outer planets are necessarily small.
+- **Long history stays curved.** Relative and fixed windows scale the ephemeris sampling, and trace paths are drawn with a smooth Catmull–Rom interpolation through the samples. The fixed-window sample budget rises from 520 points at 1 year to 4,000 at 200 years, which keeps the cost bounded but still makes a 200-year inner-planet trail dense. *Always* ignores History and renders complete parent orbits.
+- **Overview mode** is top-down at true scale, with no radial compression, and keeps the same Solid/Fading/Always and History behavior as Orbits. Use *Always* for the complete Keplerian ellipses; in heliocentric view the Sun sits at one focus, and in a planet-centered view the same parent ellipses are translated into that center’s frame. Fit shows the whole true-scale system, but the outer planets are necessarily small.
 - **Atlas mode** is the one deliberate distortion: only the radius is compressed
   (`r' = ln(1 + r / 0.18)`), preserving every angle and orbital shape. A logarithmic scale
   brings Mercury and Neptune into the same frame.
@@ -130,7 +133,7 @@ src/js/ui.js                DOM controller, center picker, transport, modal
 src/js/main.js              application state, time engine, interactions, RAF loop
 scripts/serve.mjs           zero-dependency local static server
 scripts/build-single-file.mjs   dependency-free mini-bundler for dist/solar-atlas.html
-tests/                      46 science, geometry, and camera tests
+tests/                      48 science, geometry, and camera tests
 test/fixtures/              JPL Horizons reference vectors
 CONTRACT.md                 internal engineering contract and module interfaces
 ```
@@ -150,10 +153,10 @@ Atlas compression, camera projection, zoom anchoring, symmetric fitting, and int
 - Full keyboard support, visible focus rings, ARIA labels on all controls, a live region for
   state changes, a focus-trapped help dialog, reduced-motion support, and a skip link.
 - Canvas text is drawn with a dark keyline for contrast; labels use collision-aware placement.
-- Simulation runs at ~60 fps on a 2020-era laptop at the default history span, with 10 orbit
+- Simulation runs at ~60 fps on a 2020-era laptop at the default history window, with 10 orbit
   traces, fading gradients, labels, and the star field; trace geometry is throttled and bridged
   to the live planet position between rebuilds. Long-history modes scale their sampling with
-  the selected Span.
+  the selected history window.
 - Mobile keeps the center picker and orbit-style controls above the stage; the secondary labels
   and reset row is intentionally omitted there to give the map room, while desktop/tablet float
   the full instrument panel.

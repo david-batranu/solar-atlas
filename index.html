@@ -118,18 +118,6 @@
       <div class="control__head">
         <span class="eyebrow" id="orbit-control-label">Orbit lines</span>
         <span class="control__head-right">
-          <label class="trail-span" id="trail-span-control" title="How much past orbit history Solid and Fading draw. Longer spans keep older positions visible.">
-            <span class="trail-span__label">Span</span>
-            <select class="trail-span__select" id="trail-span" aria-label="Orbit history span for Solid and Fading">
-              <option value="0.5">0.5×</option>
-              <option value="1" selected>1×</option>
-              <option value="2">2×</option>
-              <option value="5">5×</option>
-              <option value="10">10×</option>
-              <option value="20">20×</option>
-              <option value="50">50×</option>
-            </select>
-          </label>
           <button class="worlds-open" type="button" id="worlds-open" aria-haspopup="dialog" aria-controls="worlds-dialog" aria-expanded="false" title="Show or hide worlds and their orbits">
             <svg viewBox="0 0 18 18" fill="none" aria-hidden="true">
               <path d="M2.2 9c2.1-3.15 4.4-4.7 6.8-4.7s4.7 1.55 6.8 4.7c-2.1 3.15-4.4 4.7-6.8 4.7S4.3 12.15 2.2 9Z" stroke="currentColor" stroke-width="1.2"/>
@@ -144,6 +132,16 @@
         <button class="segment" type="button" data-trail="solid" aria-pressed="false" title="Continuous hairline orbits">Solid</button>
         <button class="segment is-active" type="button" data-trail="fading" aria-pressed="true" title="Comet-tail orbits that fade behind each world">Fading</button>
         <button class="segment" type="button" data-trail="always" aria-pressed="false" title="Complete closed orbits at full brightness, with no fading">Always</button>
+      </div>
+      <div class="history" id="history-control" title="Relative windows are multiples of each body's automatic history; fixed windows show the same number of years for every body.">
+        <span class="history__label" id="history-label">History</span>
+        <div class="history__modes" role="group" aria-label="History window mode">
+          <button class="history__mode is-active" type="button" data-history-mode="relative" aria-pressed="true">Relative</button>
+          <button class="history__mode" type="button" data-history-mode="fixed" aria-pressed="false">Fixed</button>
+        </div>
+        <select class="history__value" id="history-value" aria-labelledby="history-label" aria-label="History window">
+          <option value="1" selected>1×</option>
+        </select>
       </div>
     </section>
 
@@ -298,7 +296,7 @@
         </div>
         <div class="help-row">
           <span class="shortcut">Modes</span>
-          <p><strong>Orbits</strong> is a tilted, explorable true-scale view. <strong>Overview</strong> is top-down at true scale with no radial compression; it uses the same Solid, Fading and Always line styles and Span as Orbits. Choose <strong>Always</strong> to see the complete ellipses. <strong>Atlas</strong> compresses radial distance to fit the whole system.</p>
+          <p><strong>Orbits</strong> is a tilted, explorable true-scale view. <strong>Overview</strong> is top-down at true scale with no radial compression; it uses the same Solid, Fading and Always line styles and History controls as Orbits. Choose <strong>Always</strong> to see the complete ellipses. <strong>Atlas</strong> compresses radial distance to fit the whole system.</p>
         </div>
         <div class="help-row">
           <span class="shortcut">Space</span>
@@ -313,8 +311,8 @@
           <p>Use <strong>Worlds</strong> beside the orbit heading to show or hide markers, labels and orbit lines. The center world always stays visible. Press <kbd>V</kbd> to open it.</p>
         </div>
         <div class="help-row">
-          <span class="shortcut">Span</span>
-          <p>The <strong>Span</strong> selector beside Orbit lines sets how much history Solid and Fading draw, from 0.5× to 50×. Longer spans keep older positions available; Fading leaves a faint guide across the full span.</p>
+          <span class="shortcut">History</span>
+          <p><strong>Relative</strong> windows are multiples of each body's automatic window — one orbit or about 2.5 synodic loops — from 0.5× to 50×. <strong>Fixed</strong> windows give every body exactly 1, 10, 50 or 200 years, making travel over the same period directly comparable. The control applies to Solid and Fading; Always ignores it and draws the full orbit.</p>
         </div>
         <div class="help-row">
           <span class="shortcut">Esc</span>

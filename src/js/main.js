@@ -41,6 +41,10 @@ const TRACE_SAMPLES = 520;
 const COMPLETE_TRACE_SAMPLES = 560;
 const MAX_TRACE_SAMPLES = 3200;
 const TRAIL_SPAN_OPTIONS = [0.5, 1, 2, 5, 10, 20, 50];
+const HISTORY_MODES = ['relative', 'fixed'];
+const FIXED_YEAR_OPTIONS = [1, 10, 50, 200];
+const MAX_FIXED_TRACE_SAMPLES = 4000;
+const DAYS_PER_YEAR = 365.25;
 const MODES = ['realistic', 'overview', 'atlas'];
 // Keep shared links from the short-lived "Elliptic" label working.
 const MODE_ALIASES = { elliptic: 'overview' };
@@ -66,6 +70,8 @@ const state = {
   mode: DEFAULT_MODE,
   trailStyle: DEFAULT_TRAIL,
   trailSpan: 1,
+  historyMode: 'relative',
+  historyYears: 10,
   labels: true,
   playing: true,
   direction: 1,
@@ -123,6 +129,8 @@ const actions = {
   setMode: (mode) => setMode(mode),
   setTrailStyle: (style) => setTrailStyle(style),
   setTrailSpan: (span) => setTrailSpan(span),
+  setHistoryMode: (mode) => setHistoryMode(mode),
+  setHistoryYears: (years) => setHistoryYears(years),
   setLabels: (labels) => setLabels(labels),
   setVisibility: (id, visible) => setVisibility(id, visible),
   setAllVisible: (visible) => setAllVisible(visible),
@@ -159,6 +167,13 @@ function readInitialUrlState() {
 
   const span = Number(params.get('span'));
   if (TRAIL_SPAN_OPTIONS.includes(span)) state.trailSpan = span;
+
+  const history = params.get('history');
+  if (history === 'fixed') state.historyMode = 'fixed';
+  else if (history === 'relative') state.historyMode = 'relative';
+
+  const years = Number(params.get('years'));
+  if (FIXED_YEAR_OPTIONS.includes(years)) state.historyYears = years;
 
   const hide = params.get('hide');
   if (hide) {
@@ -199,8 +214,16 @@ function writeUrlState() {
     url.searchParams.set('mode', state.mode);
     url.searchParams.set('trail', state.trailStyle);
     url.searchParams.set('labels', state.labels ? '1' : '0');
-    if (state.trailSpan !== 1) url.searchParams.set('span', String(state.trailSpan));
-    else url.searchParams.delete('span');
+    if (state.historyMode === 'fixed') {
+      url.searchParams.set('history', 'fixed');
+      url.searchParams.set('years', String(state.historyYears));
+      url.searchParams.delete('span');
+    } else {
+      url.searchParams.delete('history');
+      url.searchParams.delete('years');
+      if (state.trailSpan !== 1) url.searchParams.set('span', String(state.trailSpan));
+      else url.searchParams.delete('span');
+    }
     const hidden = BODIES
       .filter((body) => body.id !== state.centerId && state.hiddenBodies.has(body.id))
       .map((body) => body.id);
@@ -587,18 +610,34 @@ function fitView() {
 
 /* ------------------------------------------------------------------- traces */
 
+// Fixed-year windows need more samples as their window grows, but the point
+// budget is deliberately capped: 200 years of Mercury is hundreds of loops,
+// and unbounded per-loop sampling would make every rebuild unbounded too.
+function fixedHistorySampleCount(years) {
+  const value = Math.max(1, Number(years) || 1);
+  return Math.min(
+    MAX_FIXED_TRACE_SAMPLES,
+    Math.max(TRACE_SAMPLES, Math.round(TRACE_SAMPLES * Math.sqrt(value))),
+  );
+}
+
 function rebuildTraces(now = performance.now(), force = false) {
   if (!force && traces && Math.abs(state.jd - tracesJd) < 1e-8) return;
   currentPositions = astronomy.getPositions(state.jd);
   try {
     const completeOrbits = state.trailStyle === 'always';
     const build = completeOrbits ? buildCompleteOrbitTraces : buildTraces;
+    const fixedWindowDays = state.historyMode === 'fixed'
+      ? state.historyYears * DAYS_PER_YEAR
+      : null;
     const samples = completeOrbits
       ? COMPLETE_TRACE_SAMPLES
-      : Math.min(
-        MAX_TRACE_SAMPLES,
-        Math.max(TRACE_SAMPLES, Math.round(220 * Math.max(1, state.trailSpan))),
-      );
+      : state.historyMode === 'fixed'
+        ? fixedHistorySampleCount(state.historyYears)
+        : Math.min(
+          MAX_TRACE_SAMPLES,
+          Math.max(TRACE_SAMPLES, Math.round(220 * Math.max(1, state.trailSpan))),
+        );
     traces = build({
       jd: state.jd,
       centerId: state.centerId,
@@ -606,6 +645,7 @@ function rebuildTraces(now = performance.now(), force = false) {
       getPositions: astronomy.getPositions,
       getPosition: astronomy.getHeliocentricPosition,
       span: state.trailSpan,
+      fixedWindowDays,
       samples,
     });
     tracesJd = state.jd;
@@ -628,11 +668,17 @@ function maybeRebuildTraces(now) {
     return;
   }
   if (!state.playing) return;
-  const rebuildInterval = state.trailSpan >= 20
-    ? 350
-    : state.trailSpan >= 5
-      ? 250
-      : TRACE_REBUILD_MS;
+  const rebuildInterval = state.historyMode === 'fixed'
+    ? state.historyYears >= 50
+      ? 350
+      : state.historyYears >= 10
+        ? 250
+        : TRACE_REBUILD_MS
+    : state.trailSpan >= 20
+      ? 350
+      : state.trailSpan >= 5
+        ? 250
+        : TRACE_REBUILD_MS;
   if (now - tracesBuiltAt < rebuildInterval) return;
   if (Math.abs(state.jd - tracesJd) < 1e-7) return;
   rebuildTraces(now, true);
@@ -707,7 +753,7 @@ function setMode(mode) {
     ui.announce('Atlas view. Distances are compressed for a top-down map of the whole system.');
   } else if (mode === 'overview') {
     // Frame the whole true-scale system. Unlike Atlas, nothing is radially
-    // compressed; the selected line style and Span still apply, so Always
+    // compressed; the selected line style and History window still apply, so Always
     // reveals the complete ellipses while Fading shows their recent trails.
     goal = overviewFitAllGoal();
     duration = 900;
@@ -744,6 +790,13 @@ function setTrailSpan(span) {
   const next = Number(span);
   if (!TRAIL_SPAN_OPTIONS.includes(next) || next === state.trailSpan) return;
   state.trailSpan = next;
+  if (state.historyMode === 'fixed') {
+    // Keep the relative preference for when the user switches back, but do
+    // not rebuild fixed-window traces for a value they cannot see.
+    syncUI();
+    writeUrlState();
+    return;
+  }
   traces = null;
   tracesJd = Number.NaN;
   rebuildTraces(performance.now(), true);
@@ -751,6 +804,35 @@ function setTrailSpan(span) {
   syncUI();
   writeUrlState();
   ui.announce(`Orbit history set to ${next}× the standard span.`);
+}
+
+function setHistoryMode(mode) {
+  if (!HISTORY_MODES.includes(mode) || mode === state.historyMode) return;
+  state.historyMode = mode;
+  traces = null;
+  tracesJd = Number.NaN;
+  rebuildTraces(performance.now(), true);
+  recomputeScaleLimits();
+  syncUI();
+  writeUrlState();
+  ui.announce(mode === 'fixed'
+    ? `Fixed history window. Every world shows the last ${state.historyYears} years.`
+    : 'Relative history windows restored.');
+}
+
+function setHistoryYears(years) {
+  const next = Number(years);
+  if (!FIXED_YEAR_OPTIONS.includes(next)) return;
+  if (state.historyMode === 'fixed' && state.historyYears === next) return;
+  state.historyMode = 'fixed';
+  state.historyYears = next;
+  traces = null;
+  tracesJd = Number.NaN;
+  rebuildTraces(performance.now(), true);
+  recomputeScaleLimits();
+  syncUI();
+  writeUrlState();
+  ui.announce(`Fixed history window set to ${next} ${next === 1 ? 'year' : 'years'}.`);
 }
 
 function setLabels(labels) {
@@ -852,6 +934,8 @@ function resetView() {
   state.mode = 'realistic';
   state.trailStyle = 'fading';
   state.trailSpan = 1;
+  state.historyMode = 'relative';
+  state.historyYears = 10;
   state.labels = true;
   state.hiddenBodies.clear();
   savedRealisticCamera = null;
@@ -1537,6 +1621,10 @@ function boot() {
       mode: state.mode,
       trailStyle: state.trailStyle,
       trailSpan: state.trailSpan,
+      historyMode: state.historyMode,
+      historyYears: state.historyYears,
+      traceWindowDays: Array.isArray(traces) && traces[0] ? traces[0].windowDays : null,
+      traceSampleCount: Array.isArray(traces) && traces[0] ? traces[0].points.length : null,
       labels: state.labels,
       playing: state.playing,
       direction: state.direction,
@@ -1557,6 +1645,8 @@ function boot() {
     setMode: (mode) => setMode(mode),
     setTrailStyle: (style) => setTrailStyle(style),
     setTrailSpan: (span) => setTrailSpan(span),
+    setHistoryMode: (mode) => setHistoryMode(mode),
+    setHistoryYears: (years) => setHistoryYears(years),
     setLabels: (labels) => setLabels(labels),
     setSpeed: (days) => setSpeed(days),
     setJd: (value) => {
@@ -1591,6 +1681,8 @@ function boot() {
       mode: state.mode,
       trailStyle: state.trailStyle,
       trailSpan: state.trailSpan,
+      historyMode: state.historyMode,
+      historyYears: state.historyYears,
       atlasBlend: atlas.blend,
       camera: { ...camera },
       layout: renderer.getLastLayout(),

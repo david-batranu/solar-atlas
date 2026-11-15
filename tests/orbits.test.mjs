@@ -1318,3 +1318,37 @@ test('trace builders expose Julian-day endpoints for point tooltips', () => {
     assert.ok(trace.startJd < trace.endJd);
   }
 });
+
+test('getTraceWindowDays: fixed windows override the relative multiplier', () => {
+  const earth = BY_ID.earth;
+  const sun = BY_ID.sun;
+  const fixed = 10 * 365.25;
+
+  assert.equal(getTraceWindowDays(earth, sun, 1, fixed), fixed);
+  assert.equal(getTraceWindowDays(earth, sun, 50, fixed), fixed);
+  assert.equal(getTraceWindowDays(BY_ID.pluto, sun, 1, 365.25), 365.25);
+  assert.equal(getTraceWindowDays(earth, sun, 1, 300 * 365.25), 250 * 365.25);
+  // Invalid fixed values fall back to the relative window.
+  assert.equal(getTraceWindowDays(earth, sun, 2, null), 365.256 * 2);
+  assert.equal(getTraceWindowDays(earth, sun, 2, Number.NaN), 365.256 * 2);
+});
+
+test('buildTraces: a fixed window is shared by every trace', () => {
+  const jd = J2000_JD + 2400;
+  const fixed = 50 * 365.25;
+  const traces = buildTraces({
+    jd,
+    centerId: 'earth',
+    bodies: BODIES,
+    getPositions: fakeSolarSystemPositions,
+    span: 50,
+    fixedWindowDays: fixed,
+    samples: 16,
+  });
+  assert.ok(traces.length > 1);
+  for (const trace of traces) {
+    assert.equal(trace.windowDays, fixed);
+    assert.equal(trace.endJd, jd);
+    assertClose(trace.startJd, jd - fixed, 1e-12);
+  }
+});

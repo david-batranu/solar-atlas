@@ -158,14 +158,21 @@ export function displayPosition(p, blend) {
  * @param {object} target BODIES-shaped target.
  * @param {object} center BODIES-shaped centre.
  * @param {number} [span=1] History multiplier, clamped to [0.5, 50].
+ * @param {number|null} [fixedWindowDays=null] Absolute history window in
+ *   days. When valid, this overrides `span` and is capped at 250 years.
  * @returns {number} Window length in days (> 0, finite).
  * @throws {TypeError} If target or center is not an object.
  */
-export function getTraceWindowDays(target, center, span = 1) {
+export function getTraceWindowDays(target, center, span = 1, fixedWindowDays = null) {
   if (!isObject(target) || !isObject(center)) {
     throw new TypeError(
       'getTraceWindowDays: target and center must be BODIES-shaped objects'
     );
+  }
+
+  const fixedDays = positiveDays(fixedWindowDays);
+  if (fixedDays !== null) {
+    return Math.min(fixedDays, MAX_TRAIL_HISTORY_DAYS);
   }
 
   let baseWindow;
@@ -236,7 +243,9 @@ export function getTraceWindowDays(target, center, span = 1) {
  *   instead of `getPositions`, so a trace only computes its own target and
  *   center rather than every body in the system.
  * @param {number} [options.span=1] History multiplier for the trace window,
- *   clamped to [0.5, 50].
+ *   clamped to [0.5, 50]. Ignored when `fixedWindowDays` is supplied.
+ * @param {number|null} [options.fixedWindowDays=null] Absolute history
+ *   window in days, shared by every trace (capped at 250 years).
  * @param {number} [options.samples=480] Samples per trace (normalised to an
  *   integer in [2, 20 000]).
  * @returns {Array<{
@@ -259,6 +268,7 @@ export function buildTraces({
   getPositions,
   getPosition = null,
   span = 1,
+  fixedWindowDays = null,
   samples = DEFAULT_SAMPLE_COUNT,
 } = {}) {
   if (typeof getPositions !== 'function') {
@@ -294,6 +304,7 @@ export function buildTraces({
       getPositions,
       getPosition: typeof getPosition === 'function' ? getPosition : null,
       span,
+      fixedWindowDays,
       sampleCount,
     });
     if (trace !== null) traces.push(trace);
@@ -578,9 +589,12 @@ function sampleTrace({
   getPositions,
   getPosition,
   span,
+  fixedWindowDays,
   sampleCount,
 }) {
-  const windowDays = safeWindowDays(getTraceWindowDays(target, center, span));
+  const windowDays = safeWindowDays(
+    getTraceWindowDays(target, center, span, fixedWindowDays)
+  );
   const startJd = jd - windowDays;
   const stepDays = windowDays / (sampleCount - 1);
   const points = new Array(sampleCount);

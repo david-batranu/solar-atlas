@@ -11,10 +11,10 @@ Target: 60fps on a laptop, graceful on mobile. No external runtime assets or fon
 - Orbit trail style: **solid**, **fading** (alpha increases toward the body's current position), or **always** (complete closed parent orbit in the selected center’s frame, uniform full brightness).
 - Simulation time speed: play/pause, reverse, log speed control, speed presets, "now".
 - Zoom in/out (wheel, pinch, buttons, fit view) and pan; a top-down, true-scale **Overview**
-  mode using the same Solid/Fading/Always and Span behavior as Orbits, and a top-down **Atlas**
+  mode using the same Solid/Fading/Always and History behavior as Orbits, and a top-down **Atlas**
   mode that compresses radial distance so the entire system is legible at once.
 - Every non-center world can be hidden independently; hiding removes its marker, label and orbit trace and excludes it from Fit. The center world always remains visible. Persist the set in the URL as `hide=<comma-separated ids>`.
-- Solid and Fading history is user-adjustable from 0.5× to 50× the base trace window (`span` URL parameter); Always ignores the multiplier and draws complete parent orbits. Fading keeps a faint guide across the full selected history. Hovering an orbit segment shows its body and UTC date/time.
+- Solid and Fading history has two modes: Relative (0.5×–50× the per-body automatic window via `span`) and Fixed (1, 10, 50 or 200 years for every body via `history=fixed&years=...`). Always ignores the window and draws complete parent orbits. Fading keeps a faint guide across the full selected history. Hovering or tapping an orbit segment shows its body and UTC date/time.
 - Orbit lines / labels remain performant and legible in every center and in Overview/Atlas. On touch, a two-finger drag tilts/rotates the Orbits view (pinch still zooms) and tapping an orbit segment opens its UTC date card. The legacy URL value `mode=elliptic` normalizes to `overview`.
 
 ## Files and ownership
@@ -108,8 +108,8 @@ Uses `BODIES`-shaped objects passed in. Pure, Node-importable.
 export const ATLAS_SCALE_AU = 0.18;
 export function compressDistance(rAU)            // natural-log radial compression, r>=0 -> display AU
 export function displayPosition(p, blend)        // blend 0 = true, 1 = compressed; never mutate p
-export function getTraceWindowDays(target, center)
-export function buildTraces({ jd, centerId, bodies, getPositions, getPosition?, samples = 480 })
+export function getTraceWindowDays(target, center, span = 1, fixedWindowDays = null)
+export function buildTraces({ jd, centerId, bodies, getPositions, getPosition?, span = 1, fixedWindowDays = null, samples = 480 })
 ```
 
 `buildTraces` returns only bodies other than the center, each:
@@ -161,6 +161,7 @@ The final markup lives in `index.html` (lead-owned). Style these, do not rename:
 - `main.js` owns application state and the RAF loop. UI emits actions via callbacks in
   `ui.js`; renderer is stateless and draws a scene description.
 - Provide `window.__solar` for automated QA: `{ getState, setCenter, setMode, setTrailStyle,
-  setSpeed, setJd, togglePlay, zoomBy, fit, getSceneSummary }`.
+  setTrailSpan, setHistoryMode, setHistoryYears, setSpeed, setJd, togglePlay, zoomBy, fit,
+  getSceneSummary, pickOrbitAt }`.
 - Respect `prefers-reduced-motion`; simulation continues unless paused, camera easing is
   near-instant for reduced motion.
