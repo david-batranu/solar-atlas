@@ -13,8 +13,10 @@ export const SPEED_MAX = 365.25; // one year per real second
 export const DEFAULT_SPEED = 5; // five days per real second
 export const SPEED_PRESETS = [1 / 24, 1, 7, 30.436875, 365.25];
 
-const RELATIVE_HISTORY = { min: 0.5, max: 50, step: 0.5 };
+const RELATIVE_HISTORY = { min: 0.5, max: 50, step: 0.1 };
 const FIXED_HISTORY = { min: 1, max: 300, step: 1 };
+const RELATIVE_HISTORY_TICKS = [0.5, 1, 2, 5, 10, 20, 50];
+const FIXED_HISTORY_TICKS = [1, 3, 10, 30, 100, 300];
 
 const KIND_LABEL = {
   star: 'Star',
@@ -153,6 +155,9 @@ function centerButtonMeta(body) {
 export function createUI({ actions }) {
   let currentHistoryMode = 'relative';
   let historyCommitTimer = null;
+  let historyEditing = false;
+  let appliedHistoryValue = 1;
+  let renderedHistoryMode = null;
 
   const refs = {
     body: document.body,
@@ -171,7 +176,11 @@ export function createUI({ actions }) {
     historyControl: $('#history-control'),
     historyModeButtons: Array.from(document.querySelectorAll('[data-history-mode]')),
     historyRange: $('#history-range'),
-    historyOutput: $('#history-output'),
+    historyEdit: $('#history-edit'),
+    historyEditor: $('#history-editor'),
+    historyNumber: $('#history-number'),
+    historyUnit: $('#history-unit'),
+    historyTicks: $('#history-ticks'),
     historyHint: $('#history-hint'),
     worldsOpen: $('#worlds-open'),
     worldsCount: $('#worlds-count'),
@@ -654,7 +663,44 @@ export function createUI({ actions }) {
     if (mode === 'fixed') {
       return `${value} ${value === 1 ? 'year' : 'years'}`;
     }
-    return `${value}×`;
+    const shown = Number(Number(value).toFixed(1));
+    return `${shown}×`;
+  }
+
+  function syncHistoryTicks(mode, value) {
+    for (const tick of refs.historyTicks.querySelectorAll('.history-tick')) {
+      const tickValue = Number(tick.dataset.value);
+      const active = Math.abs(tickValue - Number(value)) < 1e-6;
+      tick.classList.toggle('is-active', active);
+      tick.setAttribute('aria-pressed', active ? 'true' : 'false');
+    }
+  }
+
+  function renderHistoryTicks(mode) {
+    const fixed = mode === 'fixed';
+    const values = fixed ? FIXED_HISTORY_TICKS : RELATIVE_HISTORY_TICKS;
+    const buttons = values.map((value) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'history-tick';
+      button.dataset.value = String(value);
+      button.setAttribute('aria-pressed', 'false');
+      button.textContent = fixed
+        ? `${value}y`
+        : `${value}×`;
+      const label = fixed
+        ? `Set history window to ${value} ${value === 1 ? 'year' : 'years'}`
+        : `Set relative history to ${value}×`;
+      button.setAttribute('aria-label', label);
+      button.title = label;
+      button.addEventListener('click', () => {
+        clearHistoryTimer();
+        if (fixed) actions.setHistoryYears(value);
+        else actions.setTrailSpan(value);
+      });
+      return button;
+    });
+    refs.historyTicks.replaceChildren(...buttons);
   }
 
   function updateHistoryControl(mode, value) {
@@ -667,7 +713,21 @@ export function createUI({ actions }) {
     const progress = (Number(value) - spec.min) / (spec.max - spec.min);
     refs.historyRange.style.setProperty('--history-fill', `${Math.max(0, Math.min(1, progress)) * 100}%`);
     const label = formatHistoryValue(mode, value);
-    refs.historyOutput.textContent = label;
+    appliedHistoryValue = Number(value);
+
+    if (!historyEditing) {
+      refs.historyEdit.textContent = label;
+      refs.historyEdit.setAttribute('aria-label', `Edit history value, currently ${label}`);
+      refs.historyEdit.hidden = false;
+      refs.historyEditor.hidden = true;
+    }
+
+    if (renderedHistoryMode !== mode) {
+      renderHistoryTicks(mode);
+      renderedHistoryMode = mode;
+    }
+    syncHistoryTicks(mode, value);
+
     refs.historyRange.setAttribute('aria-label', fixed
       ? 'Fixed history window in years'
       : 'Relative history multiplier');
@@ -681,6 +741,45 @@ export function createUI({ actions }) {
     const value = Number(refs.historyRange.value);
     if (currentHistoryMode === 'fixed') actions.setHistoryYears(Math.round(value));
     else actions.setTrailSpan(value);
+  }
+
+  function startHistoryEdit() {
+    if (historyEditing) return;
+    clearHistoryTimer();
+    const fixed = currentHistoryMode === 'fixed';
+    const spec = fixed ? FIXED_HISTORY : RELATIVE_HISTORY;
+    historyEditing = true;
+    refs.historyNumber.min = String(spec.min);
+    refs.historyNumber.max = String(spec.max);
+    refs.historyNumber.step = String(spec.step);
+    refs.historyNumber.value = String(appliedHistoryValue);
+    refs.historyNumber.setAttribute('aria-label', fixed
+      ? 'Fixed history window in years'
+      : 'Relative history multiplier');
+    refs.historyUnit.textContent = fixed
+      ? (Number(appliedHistoryValue) === 1 ? 'year' : 'years')
+      : '×';
+    refs.historyEdit.hidden = true;
+    refs.historyEditor.hidden = false;
+    refs.historyNumber.focus();
+    refs.historyNumber.select();
+  }
+
+  function finishHistoryEdit(commit) {
+    if (!historyEditing) return;
+    const raw = Number(refs.historyNumber.value);
+    historyEditing = false;
+    refs.historyEditor.hidden = true;
+    refs.historyEdit.hidden = false;
+    const fixed = currentHistoryMode === 'fixed';
+    const spec = fixed ? FIXED_HISTORY : RELATIVE_HISTORY;
+    const valid = Number.isFinite(raw) && raw >= spec.min && raw <= spec.max;
+    if (!commit || !valid) {
+      updateHistoryControl(currentHistoryMode, appliedHistoryValue);
+      return;
+    }
+    if (fixed) actions.setHistoryYears(Math.round(raw));
+    else actions.setTrailSpan(Math.round(raw * 10) / 10);
   }
 
   function sync(state) {
@@ -868,6 +967,26 @@ export function createUI({ actions }) {
     refs.historyRange.addEventListener('change', () => {
       commitHistoryValue();
     });
+
+    refs.historyEdit.addEventListener('click', startHistoryEdit);
+    refs.historyNumber.addEventListener('input', () => {
+      const number = Number(refs.historyNumber.value);
+      refs.historyUnit.textContent = currentHistoryMode === 'fixed'
+        ? (number === 1 ? 'year' : 'years')
+        : '×';
+    });
+    refs.historyNumber.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        finishHistoryEdit(true);
+        refs.historyNumber.blur();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        finishHistoryEdit(false);
+        refs.historyNumber.blur();
+      }
+    });
+    refs.historyNumber.addEventListener('blur', () => finishHistoryEdit(true));
 
     refs.worldsOpen.addEventListener('click', () => openWorldsDialog());
     refs.worldsOpen.addEventListener('keydown', (event) => {

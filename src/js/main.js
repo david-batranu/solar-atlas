@@ -43,7 +43,7 @@ const MAX_TRACE_SAMPLES = 3200;
 const HISTORY_MODES = ['relative', 'fixed'];
 const RELATIVE_HISTORY_MIN = 0.5;
 const RELATIVE_HISTORY_MAX = 50;
-const RELATIVE_HISTORY_STEP = 0.5;
+const RELATIVE_HISTORY_STEP = 0.1;
 const MAX_FIXED_YEARS = 300;
 const MAX_HISTORY_CYCLES = 12;
 const SAMPLES_PER_HISTORY_CYCLE = 72;
@@ -154,8 +154,9 @@ ui = createUI({ actions });
 
 function normalizeTrailSpan(value) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return null;
-  if (value < RELATIVE_HISTORY_MIN || value > RELATIVE_HISTORY_MAX) return null;
-  return Math.round(value / RELATIVE_HISTORY_STEP) * RELATIVE_HISTORY_STEP;
+  const rounded = Math.round(value / RELATIVE_HISTORY_STEP) * RELATIVE_HISTORY_STEP;
+  if (rounded < RELATIVE_HISTORY_MIN || rounded > RELATIVE_HISTORY_MAX) return null;
+  return Number(rounded.toFixed(1));
 }
 
 function readInitialUrlState() {

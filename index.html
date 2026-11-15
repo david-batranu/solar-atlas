@@ -140,7 +140,27 @@
             <button class="history__mode is-active" type="button" data-history-mode="relative" aria-pressed="true">Relative</button>
             <button class="history__mode" type="button" data-history-mode="fixed" aria-pressed="false">Fixed</button>
           </div>
-          <output class="history__output" id="history-output" for="history-range">1×</output>
+          <button
+            class="history__output"
+            id="history-edit"
+            type="button"
+            title="Click to type an exact history value"
+            aria-label="Edit history value"
+          >1×</button>
+          <span class="history__editor" id="history-editor" hidden>
+            <input
+              class="history__number"
+              id="history-number"
+              type="number"
+              inputmode="decimal"
+              min="0.5"
+              max="50"
+              step="0.1"
+              value="1"
+              aria-label="Relative history multiplier"
+            >
+            <span class="history__unit" id="history-unit">×</span>
+          </span>
         </div>
         <input
           class="history__range"
@@ -148,10 +168,11 @@
           type="range"
           min="0.5"
           max="50"
-          step="0.5"
+          step="0.1"
           value="1"
           aria-label="Relative history multiplier"
         >
+        <div class="history-ticks" id="history-ticks" role="group" aria-label="History presets"></div>
         <span class="history__hint" id="history-hint" hidden>Overlap cap: 12 recent loops per world.</span>
       </div>
     </section>
@@ -323,7 +344,7 @@
         </div>
         <div class="help-row">
           <span class="shortcut">History</span>
-          <p>Use the slider for continuous control. <strong>Relative</strong> sets 0.5×–50× each body's automatic window; <strong>Fixed</strong> sets a shared 1–300-year limit. To avoid thick, redundant lines and wasted work, a body stops drawing after twelve repeated cycles — outer worlds can use the full span while fast inner worlds show their most recent loops. The control applies to Solid and Fading; Always ignores it.</p>
+          <p>Use the slider for continuous control. <strong>Relative</strong> sets 0.5×–50× each body's automatic window; <strong>Fixed</strong> sets a shared 1–300-year limit. Click the readout to type an exact value, or use the labeled stops beneath the slider. To avoid thick, redundant lines and wasted work, a body stops drawing after twelve repeated cycles — outer worlds can use the full span while fast inner worlds show their most recent loops. The control applies to Solid and Fading; Always ignores it.</p>
         </div>
         <div class="help-row">
           <span class="shortcut">Esc</span>
