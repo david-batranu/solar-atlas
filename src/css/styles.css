@@ -583,16 +583,16 @@ kbd {
   color: var(--blue-bright);
 }
 
-/* Elliptic is the true-scale, top-down projection. */
-.mode-btn[data-mode="elliptic"][aria-pressed="true"],
-.mode-btn[data-mode="elliptic"].is-active {
+/* Overview is the true-scale, top-down projection. */
+.mode-btn[data-mode="overview"][aria-pressed="true"],
+.mode-btn[data-mode="overview"].is-active {
   border-color: rgba(184, 220, 199, 0.28);
   background: linear-gradient(180deg, rgba(184, 220, 199, 0.16), rgba(184, 220, 199, 0.055));
   color: #e9f4ed;
 }
 
-.mode-btn[data-mode="elliptic"][aria-pressed="true"] svg,
-.mode-btn[data-mode="elliptic"].is-active svg {
+.mode-btn[data-mode="overview"][aria-pressed="true"] svg,
+.mode-btn[data-mode="overview"].is-active svg {
   color: #c0e2cd;
 }
 
@@ -1904,9 +1904,9 @@ body.is-paused .play-btn .icon-play {
   text-transform: uppercase;
 }
 
-/* Atlas and Elliptic lock tilt, so the tilt instruction is a lie there. */
+/* Atlas and Overview lock tilt, so the tilt instruction is a lie there. */
 body.is-atlas .canvas-hint span:nth-child(2),
-body.is-elliptic .canvas-hint span:nth-child(2) {
+body.is-overview .canvas-hint span:nth-child(2) {
   display: none;
 }
 

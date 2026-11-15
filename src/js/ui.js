@@ -644,13 +644,13 @@ export function createUI({ actions }) {
       button.setAttribute('aria-pressed', active ? 'true' : 'false');
     }
     refs.body.classList.toggle('is-atlas', state.mode === 'atlas');
-    refs.body.classList.toggle('is-elliptic', state.mode === 'elliptic');
+    refs.body.classList.toggle('is-overview', state.mode === 'overview');
     refs.modeNote.textContent = state.mode === 'atlas'
       ? 'Radial distance compressed · top-down. Every world in one frame.'
-      : state.mode === 'elliptic'
+      : state.mode === 'overview'
         ? 'True distances, true ellipses · top-down. Same line styles and spans as Orbits; no radial compression.'
         : center.id === 'sun'
-          ? 'True distances & inclinations. Elliptic and Atlas are top-down.'
+          ? 'True distances & inclinations. Overview and Atlas are top-down.'
           : `${center.name}-centered view. True distances; Fit reveals the whole system.`;
 
     // Orbit style.
@@ -720,7 +720,7 @@ export function createUI({ actions }) {
     if (refs.canvas) {
       refs.canvas.setAttribute(
         'aria-label',
-        `Orbital map of the Solar System centered on ${center.name}, shown in ${state.mode === 'atlas' ? 'top-down compressed atlas' : state.mode === 'elliptic' ? 'top-down true-scale elliptic' : 'tilted orbit'} view. ${state.playing ? 'Simulation running' : 'Simulation paused'} at ${formatSpeed(state.speedDaysPerSec)}. ${visibleCount} of ${BODIES.length} worlds visible.`,
+        `Orbital map of the Solar System centered on ${center.name}, shown in ${state.mode === 'atlas' ? 'top-down compressed atlas' : state.mode === 'overview' ? 'top-down true-scale overview' : 'tilted orbit'} view. ${state.playing ? 'Simulation running' : 'Simulation paused'} at ${formatSpeed(state.speedDaysPerSec)}. ${visibleCount} of ${BODIES.length} worlds visible.`,
       );
     }
   }

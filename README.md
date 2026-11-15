@@ -5,7 +5,7 @@
 Open the orrery and watch the planets move along their real Keplerian paths. Change the center
 of the view to the Sun, Earth, Jupiter, the Moon, or any other body, and every orbit is
 recomputed around that new anchor. Switch between glowing comet trails, clean solid lines, and complete, full-brightness orbits, stretch the trail history from half to fifty times its default span,
-scrub the tempo from hours to years per second, and switch between a top-down, true-scale Elliptic view — with the same line styles as
+scrub the tempo from hours to years per second, and switch between a top-down, true-scale Overview view — with the same line styles as
 Orbits — and an Atlas that compresses distance so all eleven worlds fit in one composed view.
 
 **Live site:** [seekahead.eu/solar](https://seekahead.eu/solar/) · [GitHub Pages mirror](https://david-batranu.github.io/solar-atlas/)
@@ -21,8 +21,8 @@ external fonts or images. Every world can be shown or hidden independently, incl
 ![Solar Atlas — geocentric orbit view](docs/screenshots/orbits-geocentric.png)
 *The same moment centered on Earth: the apparent solar path and the inner worlds' geocentric rosettes.*
 
-![Solar Atlas — Elliptic view](docs/screenshots/elliptic-heliocentric.png)
-*Elliptic view: top-down at true scale with no radial compression. This preview uses Fading at 5× span; Solid and Always work here exactly as they do in Orbits.*
+![Solar Atlas — Overview view](docs/screenshots/overview-heliocentric.png)
+*Overview view: top-down at true scale with no radial compression. This preview uses Fading at 5× span; Solid and Always work here exactly as they do in Orbits.*
 
 ![Solar Atlas — Atlas view](docs/screenshots/atlas-heliocentric.png)
 *Atlas view: all eleven worlds in one top-down, radially compressed map.*
@@ -67,12 +67,12 @@ Node 18+ is recommended. There is no install step.
 | **Center picker** in the left panel | Re-anchor the whole map on the Sun, a planet, Pluto, or the Moon. |
 | **Click a world or its label** | Centre the map on that world. |
 | **Hover an orbit point** | See the body and the UTC date/time it occupied that point. |
-| **Orbit lines: Solid / Fading / Always** | Continuous hairlines, luminous comet-tail trails, or complete closed orbits at full brightness with no fading. Always shows each world’s full orbit around its parent, translated into the current center’s frame. Available in Orbits, Elliptic and Atlas. |
+| **Orbit lines: Solid / Fading / Always** | Continuous hairlines, luminous comet-tail trails, or complete closed orbits at full brightness with no fading. Always shows each world’s full orbit around its parent, translated into the current center’s frame. Available in Orbits, Overview and Atlas. |
 | **Visible worlds** | Open **Worlds** beside Orbit lines to show or hide any world’s marker, label and orbit. Use **Center only** to clear the field, then tick the worlds you want. The center world is always visible. |
 | **Span** beside Orbit lines | Stretch or shorten the Solid/Fading history from 0.5× to 50× its default window. Longer spans keep older positions available; Fading adds a faint guide across the whole window so its oldest end does not disappear. |
-| **Orbits / Elliptic / Atlas** | Tilted true-scale view; top-down true-scale view with no radial compression; or the top-down radially compressed whole-system map. Elliptic uses the same line style and Span controls as Orbits. |
+| **Orbits / Overview / Atlas** | Tilted true-scale view; top-down true-scale view with no radial compression; or the top-down radially compressed whole-system map. Overview uses the same line style and Span controls as Orbits. |
 | **Drag** | Pan the map. |
-| **Shift + drag** | Tilt and rotate the orbit view (locked in Elliptic and Atlas). |
+| **Shift + drag** | Tilt and rotate the orbit view (locked in Overview and Atlas). |
 | **Scroll / pinch** | Zoom toward the pointer or pinch center. |
 | **Play / reverse**, tempo slider, HR–YR presets | Control simulated time from 30 minutes to one year per real second, forwards or backwards. |
 | **Now** | Return to the present moment. |
@@ -80,10 +80,9 @@ Node 18+ is recommended. There is no install step.
 | **World labels** | Toggle the canvas labels. |
 | **Reset view** | Heliocentric, true distances, fading orbits, all worlds visible, default framing. |
 
-Keyboard: `Space` play/pause · `F` fit · `A` toggle Atlas · `E` toggle Elliptic · `V` visible worlds · `R` reset · `1`–`5` hour/day/week/month/year per second · `+`/`-` zoom · arrows pan · `Shift`+arrows tilt · `?` or `H` help · `Esc` close.
+Keyboard: `Space` play/pause · `F` fit · `A` toggle Atlas · `O` toggle Overview · `V` visible worlds · `R` reset · `1`–`5` hour/day/week/month/year per second · `+`/`-` zoom · arrows pan · `Shift`+arrows tilt · `?` or `H` help · `Esc` close.
 
-The URL records `center`, `mode`, `trail`, `span`, `labels`, and hidden worlds (`hide=mercury,jupiter`), so any view can be shared. Add
-`date=2025-01-01T00:00:00Z` or `paused=1` for a fixed scene.
+The URL records `center`, `mode`, `trail`, `span`, `labels`, and hidden worlds (`hide=mercury,jupiter`), so any view can be shared. `mode=overview` selects the top-down true-scale view; the earlier `mode=elliptic` links still map to it. Add `date=2025-01-01T00:00:00Z` or `paused=1` for a fixed scene.
 
 ## Orbit model
 
@@ -101,11 +100,11 @@ The URL records `center`, `mode`, `trail`, `span`, `labels`, and hidden worlds (
   against the moving center at the same instant, so the trails are the true geocentric /
   areocentric / etc. rosettes and retrograde loops over several synodic periods.
 - **Long history stays curved.** The Span selector scales the ephemeris sampling with the requested history, and trace paths are drawn with a smooth Catmull–Rom interpolation through the samples. This keeps extended 5×–50× geocentric rosettes from turning into visible polygons; *Always* ignores Span and renders complete parent orbits.
-- **Elliptic mode** is top-down at true scale, with no radial compression, and keeps the same Solid/Fading/Always and Span behavior as Orbits. Use *Always* for the complete Keplerian ellipses; in heliocentric view the Sun sits at one focus, and in a planet-centered view the same parent ellipses are translated into that center’s frame. Fit shows the whole true-scale system, but the outer planets are necessarily small.
+- **Overview mode** is top-down at true scale, with no radial compression, and keeps the same Solid/Fading/Always and Span behavior as Orbits. Use *Always* for the complete Keplerian ellipses; in heliocentric view the Sun sits at one focus, and in a planet-centered view the same parent ellipses are translated into that center’s frame. Fit shows the whole true-scale system, but the outer planets are necessarily small.
 - **Atlas mode** is the one deliberate distortion: only the radius is compressed
   (`r' = ln(1 + r / 0.18)`), preserving every angle and orbital shape. A logarithmic scale
   brings Mercury and Neptune into the same frame.
-- **Sizes are schematic.** Planet distances and inclination are true in *Orbits* and *Elliptic* modes; marker
+- **Sizes are schematic.** Planet distances and inclination are true in *Orbits* and *Overview* modes; marker
   radii are exaggerated so worlds remain visible. Atlas adds a further 20% to markers.
 - **Accuracy.** Against JPL Horizons state vectors at 2025-01-01, the ephemeris implements
   positions within roughly `5e-6` AU (Mercury) to `1.4e-2` AU (Saturn); the lunar position
