@@ -133,15 +133,26 @@
         <button class="segment is-active" type="button" data-trail="fading" aria-pressed="true" title="Comet-tail orbits that fade behind each world">Fading</button>
         <button class="segment" type="button" data-trail="always" aria-pressed="false" title="Complete closed orbits at full brightness, with no fading">Always</button>
       </div>
-      <div class="history" id="history-control" title="Relative windows are multiples of each body's automatic history; fixed windows show the same number of years for every body.">
-        <span class="history__label" id="history-label">History</span>
-        <div class="history__modes" role="group" aria-label="History window mode">
-          <button class="history__mode is-active" type="button" data-history-mode="relative" aria-pressed="true">Relative</button>
-          <button class="history__mode" type="button" data-history-mode="fixed" aria-pressed="false">Fixed</button>
+      <div class="history" id="history-control" title="Relative windows are multiples of each body's automatic history; fixed windows set a shared year limit, with overlapping cycles collapsed for fast inner worlds.">
+        <div class="history__top">
+          <span class="history__label" id="history-label">History</span>
+          <div class="history__modes" role="group" aria-label="History window mode">
+            <button class="history__mode is-active" type="button" data-history-mode="relative" aria-pressed="true">Relative</button>
+            <button class="history__mode" type="button" data-history-mode="fixed" aria-pressed="false">Fixed</button>
+          </div>
+          <output class="history__output" id="history-output" for="history-range">1×</output>
         </div>
-        <select class="history__value" id="history-value" aria-labelledby="history-label" aria-label="History window">
-          <option value="1" selected>1×</option>
-        </select>
+        <input
+          class="history__range"
+          id="history-range"
+          type="range"
+          min="0.5"
+          max="50"
+          step="0.5"
+          value="1"
+          aria-label="Relative history multiplier"
+        >
+        <span class="history__hint" id="history-hint" hidden>Overlap cap: 12 recent loops per world.</span>
       </div>
     </section>
 
@@ -312,7 +323,7 @@
         </div>
         <div class="help-row">
           <span class="shortcut">History</span>
-          <p><strong>Relative</strong> windows are multiples of each body's automatic window — one orbit or about 2.5 synodic loops — from 0.5× to 50×. <strong>Fixed</strong> windows give every body exactly 1, 10, 50 or 200 years, making travel over the same period directly comparable. The control applies to Solid and Fading; Always ignores it and draws the full orbit.</p>
+          <p>Use the slider for continuous control. <strong>Relative</strong> sets 0.5×–50× each body's automatic window; <strong>Fixed</strong> sets a shared 1–300-year limit. To avoid thick, redundant lines and wasted work, a body stops drawing after twelve repeated cycles — outer worlds can use the full span while fast inner worlds show their most recent loops. The control applies to Solid and Fading; Always ignores it.</p>
         </div>
         <div class="help-row">
           <span class="shortcut">Esc</span>

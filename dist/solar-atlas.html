@@ -4059,12 +4059,19 @@ body.reduced-motion .timebar__date .eyebrow::before {
 
 .history {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 5px;
   min-width: 0;
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid var(--line-hair);
+}
+
+.history__top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .history[hidden] {
@@ -4128,42 +4135,95 @@ body.reduced-motion .timebar__date .eyebrow::before {
   outline-offset: 1px;
 }
 
-.history__value {
+.history__output {
+  flex: none;
+  min-width: 54px;
+  margin-left: auto;
+  color: var(--brass-bright);
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.015em;
+  line-height: 1;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.history__range {
+  --history-fill: 50%;
   appearance: none;
   -webkit-appearance: none;
-  flex: 1 1 84px;
-  min-width: 0;
-  min-height: 28px;
-  padding: 3px 21px 3px 8px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background-color: rgba(3, 7, 13, 0.34);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='m1 1 4 4 4-4' fill='none' stroke='%23a8b5c6' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 6px center;
-  background-size: 9px 6px;
-  color: var(--ink-muted);
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.01em;
-  line-height: 1;
+  width: 100%;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
   cursor: pointer;
-  transition:
-    color var(--dur-fast) var(--ease),
-    border-color var(--dur-fast) var(--ease),
-    background-color var(--dur-fast) var(--ease);
 }
 
-.history__value:hover {
-  border-color: var(--line-strong);
-  background-color: rgba(232, 189, 116, 0.075);
-  color: var(--ink);
+.history__range::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--brass) 0 var(--history-fill),
+    rgba(199, 218, 241, 0.16) var(--history-fill) 100%
+  );
 }
 
-.history__value:focus-visible {
+.history__range::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5.5px;
+  border: 1px solid rgba(255, 239, 205, 0.7);
+  border-radius: 50%;
+  background: var(--brass-bright);
+  box-shadow:
+    0 0 0 3px rgba(232, 189, 116, 0.1),
+    0 2px 7px rgba(0, 0, 0, 0.45);
+}
+
+.history__range::-moz-range-track {
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(199, 218, 241, 0.16);
+}
+
+.history__range::-moz-range-progress {
+  height: 3px;
+  border-radius: 999px;
+  background: var(--brass);
+}
+
+.history__range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgba(255, 239, 205, 0.7);
+  border-radius: 50%;
+  background: var(--brass-bright);
+  box-shadow:
+    0 0 0 3px rgba(232, 189, 116, 0.1),
+    0 2px 7px rgba(0, 0, 0, 0.45);
+}
+
+.history__range:focus-visible {
   outline: 2px solid var(--focus);
-  outline-offset: 2px;
+  outline-offset: 3px;
+  border-radius: 999px;
+}
+
+.history__hint {
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
+  font-size: 0.5rem;
+  letter-spacing: 0.02em;
+  line-height: 1.35;
+}
+
+.history__hint[hidden] {
+  display: none;
 }
 
 @media (pointer: coarse) {
@@ -4172,9 +4232,28 @@ body.reduced-motion .timebar__date .eyebrow::before {
     padding-inline: 8px;
   }
 
-  .history__value {
-    min-height: 34px;
-    padding-block: 5px;
+  .history__range {
+    height: 26px;
+  }
+
+  .history__range::-webkit-slider-runnable-track {
+    height: 4px;
+  }
+
+  .history__range::-webkit-slider-thumb {
+    width: 18px;
+    height: 18px;
+    margin-top: -7px;
+  }
+
+  .history__range::-moz-range-track,
+  .history__range::-moz-range-progress {
+    height: 4px;
+  }
+
+  .history__range::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
   }
 }
 
@@ -4183,9 +4262,8 @@ body.reduced-motion .timebar__date .eyebrow::before {
     display: none;
   }
 
-  .history__value {
-    min-height: 26px;
-    padding-block: 2px;
+  .history__range {
+    height: 16px;
   }
 }
 
@@ -4328,15 +4406,26 @@ body.reduced-motion .timebar__date .eyebrow::before {
         <button class="segment is-active" type="button" data-trail="fading" aria-pressed="true" title="Comet-tail orbits that fade behind each world">Fading</button>
         <button class="segment" type="button" data-trail="always" aria-pressed="false" title="Complete closed orbits at full brightness, with no fading">Always</button>
       </div>
-      <div class="history" id="history-control" title="Relative windows are multiples of each body's automatic history; fixed windows show the same number of years for every body.">
-        <span class="history__label" id="history-label">History</span>
-        <div class="history__modes" role="group" aria-label="History window mode">
-          <button class="history__mode is-active" type="button" data-history-mode="relative" aria-pressed="true">Relative</button>
-          <button class="history__mode" type="button" data-history-mode="fixed" aria-pressed="false">Fixed</button>
+      <div class="history" id="history-control" title="Relative windows are multiples of each body's automatic history; fixed windows set a shared year limit, with overlapping cycles collapsed for fast inner worlds.">
+        <div class="history__top">
+          <span class="history__label" id="history-label">History</span>
+          <div class="history__modes" role="group" aria-label="History window mode">
+            <button class="history__mode is-active" type="button" data-history-mode="relative" aria-pressed="true">Relative</button>
+            <button class="history__mode" type="button" data-history-mode="fixed" aria-pressed="false">Fixed</button>
+          </div>
+          <output class="history__output" id="history-output" for="history-range">1×</output>
         </div>
-        <select class="history__value" id="history-value" aria-labelledby="history-label" aria-label="History window">
-          <option value="1" selected>1×</option>
-        </select>
+        <input
+          class="history__range"
+          id="history-range"
+          type="range"
+          min="0.5"
+          max="50"
+          step="0.5"
+          value="1"
+          aria-label="Relative history multiplier"
+        >
+        <span class="history__hint" id="history-hint" hidden>Overlap cap: 12 recent loops per world.</span>
       </div>
     </section>
 
@@ -4507,7 +4596,7 @@ body.reduced-motion .timebar__date .eyebrow::before {
         </div>
         <div class="help-row">
           <span class="shortcut">History</span>
-          <p><strong>Relative</strong> windows are multiples of each body's automatic window — one orbit or about 2.5 synodic loops — from 0.5× to 50×. <strong>Fixed</strong> windows give every body exactly 1, 10, 50 or 200 years, making travel over the same period directly comparable. The control applies to Solid and Fading; Always ignores it and draws the full orbit.</p>
+          <p>Use the slider for continuous control. <strong>Relative</strong> sets 0.5×–50× each body's automatic window; <strong>Fixed</strong> sets a shared 1–300-year limit. To avoid thick, redundant lines and wasted work, a body stops drawing after twelve repeated cycles — outer worlds can use the full span while fast inner worlds show their most recent loops. The control applies to Solid and Fading; Always ignores it.</p>
         </div>
         <div class="help-row">
           <span class="shortcut">Esc</span>
@@ -5794,7 +5883,7 @@ const MIN_TRACE_WINDOW_DAYS = 120;
 const MAX_TRACE_WINDOW_DAYS = 40 * DAYS_PER_YEAR;
 
 /** Hard ceiling for user-extended history, unless one base orbit is longer. */
-const MAX_TRAIL_HISTORY_DAYS = 250 * DAYS_PER_YEAR;
+const MAX_TRAIL_HISTORY_DAYS = 300 * DAYS_PER_YEAR;
 
 /** A local lunar trail covers a little over two sidereal months. */
 const LUNAR_TRAIL_ORBITS = 2.2;
@@ -5901,7 +5990,7 @@ function displayPosition(p, blend) {
  *    than a moon's `orbitDays` is essential for correct geocentric rosettes.
  *
  * The optional `span` multiplier stretches (or shortens) this base window for
- * the user-facing history control. The result is capped at 250 years unless a
+ * the user-facing history control. The result is capped at 300 years unless a
  * single base orbit is already longer; an outer planet's full orbit is never
  * truncated to the generic cap. Missing/null/invalid period fields are handled
  * defensively: a usable value is chosen when possible and the fallback is
@@ -5911,7 +6000,7 @@ function displayPosition(p, blend) {
  * @param {object} center BODIES-shaped centre.
  * @param {number} [span=1] History multiplier, clamped to [0.5, 50].
  * @param {number|null} [fixedWindowDays=null] Absolute history window in
- *   days. When valid, this overrides `span` and is capped at 250 years.
+ *   days. When valid, this overrides `span` and is capped at 300 years.
  * @returns {number} Window length in days (> 0, finite).
  * @throws {TypeError} If target or center is not an object.
  */
@@ -5997,7 +6086,16 @@ function getTraceWindowDays(target, center, span = 1, fixedWindowDays = null) {
  * @param {number} [options.span=1] History multiplier for the trace window,
  *   clamped to [0.5, 50]. Ignored when `fixedWindowDays` is supplied.
  * @param {number|null} [options.fixedWindowDays=null] Absolute history
- *   window in days, shared by every trace (capped at 250 years).
+ *   window in days, shared by every trace (capped at 300 years).
+ * @param {number|null} [options.maxCycles=null] Optional cap on the number of
+ *   natural apparent cycles retained per trace. Requires fixedWindowDays to be
+ *   useful; works alongside samplesPerCycle.
+ * @param {number|null} [options.samplesPerCycle=null] When set, each trace gets
+ *   roughly this many samples per retained cycle instead of the global count.
+ * @param {number|null} [options.minSamplesPerTrace=null] Lower bound for the
+ *   per-cycle sample count.
+ * @param {number|null} [options.maxSamplesPerTrace=null] Upper bound for the
+ *   per-cycle sample count.
  * @param {number} [options.samples=480] Samples per trace (normalised to an
  *   integer in [2, 20 000]).
  * @returns {Array<{
@@ -6021,6 +6119,10 @@ function buildTraces({
   getPosition = null,
   span = 1,
   fixedWindowDays = null,
+  maxCycles = null,
+  samplesPerCycle = null,
+  minSamplesPerTrace = null,
+  maxSamplesPerTrace = null,
   samples = DEFAULT_SAMPLE_COUNT,
 } = {}) {
   if (typeof getPositions !== 'function') {
@@ -6057,6 +6159,10 @@ function buildTraces({
       getPosition: typeof getPosition === 'function' ? getPosition : null,
       span,
       fixedWindowDays,
+      maxCycles,
+      samplesPerCycle,
+      minSamplesPerTrace,
+      maxSamplesPerTrace,
       sampleCount,
     });
     if (trace !== null) traces.push(trace);
@@ -6327,6 +6433,29 @@ function clampNumber(value, min, max) {
 /* ------------------------------------------------------------------------- */
 
 /**
+ * One natural repetition period for the centre-relative path. Used only to
+ * bound redundant overlapping history; not to choose the public base window.
+ *
+ * @private
+ */
+function naturalCycleDays(target, center) {
+  if (target.id === 'sun') {
+    return positiveDays(center.yearDays);
+  }
+  if (target.parentId != null && target.parentId === center.id) {
+    return positiveDays(target.orbitDays);
+  }
+  if (center.parentId != null && center.parentId === target.id) {
+    return positiveDays(center.orbitDays);
+  }
+  if (target.id === 'moon' && center.id !== 'earth') {
+    return positiveDays(target.orbitDays) ?? DEFAULT_LUNAR_ORBIT_DAYS;
+  }
+  const synodicDays = synodicPeriodDays(target.yearDays, center.yearDays);
+  return Number.isFinite(synodicDays) && synodicDays > 0 ? synodicDays : null;
+}
+
+/**
  * Sample one trace over its window, returning null if the body cannot be
  * rendered completely. The centre and target are always evaluated from the
  * same sample instant.
@@ -6342,11 +6471,33 @@ function sampleTrace({
   getPosition,
   span,
   fixedWindowDays,
+  maxCycles,
+  samplesPerCycle,
+  minSamplesPerTrace,
+  maxSamplesPerTrace,
   sampleCount,
 }) {
-  const windowDays = safeWindowDays(
+  const requestedWindowDays = safeWindowDays(
     getTraceWindowDays(target, center, span, fixedWindowDays)
   );
+  const cycleDays = naturalCycleDays(target, center);
+  const cycleLimit = positiveDays(maxCycles);
+  const windowDays = cycleLimit !== null && cycleDays !== null
+    ? Math.min(requestedWindowDays, cycleDays * cycleLimit)
+    : requestedWindowDays;
+
+  const perCycle = positiveDays(samplesPerCycle);
+  if (perCycle !== null && cycleDays !== null) {
+    const cycles = windowDays / cycleDays;
+    const minCount = normalizeSampleCount(minSamplesPerTrace ?? 2);
+    const maxCount = normalizeSampleCount(maxSamplesPerTrace ?? MAX_SAMPLE_COUNT);
+    sampleCount = normalizeSampleCount(clampNumber(
+      Math.round(cycles * perCycle),
+      minCount,
+      maxCount
+    ));
+  }
+
   const startJd = jd - windowDays;
   const stepDays = windowDays / (sampleCount - 1);
   const points = new Array(sampleCount);
@@ -6394,6 +6545,9 @@ function sampleTrace({
     points,
     alphas: buildAlphaProfile(sampleCount),
     windowDays,
+    requestedWindowDays,
+    cycleDays,
+    cycles: cycleDays !== null ? windowDays / cycleDays : null,
     startJd,
     endJd: jd,
     isClosed: target.parentId != null && target.parentId === centerId,
@@ -7982,8 +8136,8 @@ const SPEED_MAX = 365.25; // one year per real second
 const DEFAULT_SPEED = 5; // five days per real second
 const SPEED_PRESETS = [1 / 24, 1, 7, 30.436875, 365.25];
 
-const RELATIVE_HISTORY_VALUES = [0.5, 1, 2, 5, 10, 20, 50];
-const FIXED_HISTORY_YEARS = [1, 10, 50, 200];
+const RELATIVE_HISTORY = { min: 0.5, max: 50, step: 0.5 };
+const FIXED_HISTORY = { min: 1, max: 300, step: 1 };
 
 const KIND_LABEL = {
   star: 'Star',
@@ -8117,7 +8271,7 @@ function centerButtonMeta(body) {
 }
 function createUI({ actions }) {
   let currentHistoryMode = 'relative';
-  let renderedHistoryMode = null;
+  let historyCommitTimer = null;
 
   const refs = {
     body: document.body,
@@ -8135,7 +8289,9 @@ function createUI({ actions }) {
     trailSwitch: $('#trail-switch'),
     historyControl: $('#history-control'),
     historyModeButtons: Array.from(document.querySelectorAll('[data-history-mode]')),
-    historyValue: $('#history-value'),
+    historyRange: $('#history-range'),
+    historyOutput: $('#history-output'),
+    historyHint: $('#history-hint'),
     worldsOpen: $('#worlds-open'),
     worldsCount: $('#worlds-count'),
     worldsDialog: $('#worlds-dialog'),
@@ -8606,19 +8762,44 @@ function createUI({ actions }) {
     }
   }
 
-  function renderHistoryOptions(mode) {
-    const entries = mode === 'fixed'
-      ? FIXED_HISTORY_YEARS.map((years) => [
-        String(years),
-        years === 1 ? '1 year' : `${years} years`,
-      ])
-      : RELATIVE_HISTORY_VALUES.map((value) => [String(value), `${value}×`]);
-    refs.historyValue.replaceChildren(...entries.map(([value, label]) => {
-      const option = document.createElement('option');
-      option.value = value;
-      option.textContent = label;
-      return option;
-    }));
+  function clearHistoryTimer() {
+    if (historyCommitTimer) {
+      window.clearTimeout(historyCommitTimer);
+      historyCommitTimer = null;
+    }
+  }
+
+  function formatHistoryValue(mode, value) {
+    if (mode === 'fixed') {
+      return `${value} ${value === 1 ? 'year' : 'years'}`;
+    }
+    return `${value}×`;
+  }
+
+  function updateHistoryControl(mode, value) {
+    const fixed = mode === 'fixed';
+    const spec = fixed ? FIXED_HISTORY : RELATIVE_HISTORY;
+    refs.historyRange.min = String(spec.min);
+    refs.historyRange.max = String(spec.max);
+    refs.historyRange.step = String(spec.step);
+    refs.historyRange.value = String(value);
+    const progress = (Number(value) - spec.min) / (spec.max - spec.min);
+    refs.historyRange.style.setProperty('--history-fill', `${Math.max(0, Math.min(1, progress)) * 100}%`);
+    const label = formatHistoryValue(mode, value);
+    refs.historyOutput.textContent = label;
+    refs.historyRange.setAttribute('aria-label', fixed
+      ? 'Fixed history window in years'
+      : 'Relative history multiplier');
+    refs.historyRange.setAttribute('aria-valuetext', label);
+    if (fixed) refs.historyRange.setAttribute('aria-describedby', 'history-hint');
+    else refs.historyRange.removeAttribute('aria-describedby');
+  }
+
+  function commitHistoryValue() {
+    clearHistoryTimer();
+    const value = Number(refs.historyRange.value);
+    if (currentHistoryMode === 'fixed') actions.setHistoryYears(Math.round(value));
+    else actions.setTrailSpan(value);
   }
 
   function sync(state) {
@@ -8671,17 +8852,13 @@ function createUI({ actions }) {
       button.classList.toggle('is-active', active);
       button.setAttribute('aria-pressed', active ? 'true' : 'false');
     }
-    if (renderedHistoryMode !== historyMode) {
-      renderHistoryOptions(historyMode);
-      renderedHistoryMode = historyMode;
-    }
-    refs.historyValue.value = String(
-      historyMode === 'fixed' ? state.historyYears : state.trailSpan
-    );
+    const historyValue = historyMode === 'fixed' ? state.historyYears : state.trailSpan;
+    updateHistoryControl(historyMode, historyValue);
+    refs.historyHint.hidden = historyMode !== 'fixed';
     refs.historyControl.title = always
       ? 'Always shows complete orbits.'
       : historyMode === 'fixed'
-        ? `Fixed ${state.historyYears}-year window for every visible world.`
+        ? `Fixed ${state.historyYears}-year limit for every visible world. Repeated cycles stop after twelve loops to keep overlapping history readable and fast.`
         : 'Relative windows: multiples of each body\'s automatic history.';
 
     // Labels.
@@ -8796,13 +8973,19 @@ function createUI({ actions }) {
     }
 
     for (const button of refs.historyModeButtons) {
-      button.addEventListener('click', () => actions.setHistoryMode(button.dataset.historyMode));
+      button.addEventListener('click', () => {
+        clearHistoryTimer();
+        actions.setHistoryMode(button.dataset.historyMode);
+      });
     }
 
-    refs.historyValue.addEventListener('change', () => {
-      const value = Number(refs.historyValue.value);
-      if (currentHistoryMode === 'fixed') actions.setHistoryYears(value);
-      else actions.setTrailSpan(value);
+    refs.historyRange.addEventListener('input', () => {
+      updateHistoryControl(currentHistoryMode, Number(refs.historyRange.value));
+      clearHistoryTimer();
+      historyCommitTimer = window.setTimeout(commitHistoryValue, 140);
+    });
+    refs.historyRange.addEventListener('change', () => {
+      commitHistoryValue();
     });
 
     refs.worldsOpen.addEventListener('click', () => openWorldsDialog());
@@ -8933,10 +9116,14 @@ const ATLAS_ELEVATION = 90 * DEG;
 const TRACE_SAMPLES = 520;
 const COMPLETE_TRACE_SAMPLES = 560;
 const MAX_TRACE_SAMPLES = 3200;
-const TRAIL_SPAN_OPTIONS = [0.5, 1, 2, 5, 10, 20, 50];
 const HISTORY_MODES = ['relative', 'fixed'];
-const FIXED_YEAR_OPTIONS = [1, 10, 50, 200];
-const MAX_FIXED_TRACE_SAMPLES = 4000;
+const RELATIVE_HISTORY_MIN = 0.5;
+const RELATIVE_HISTORY_MAX = 50;
+const RELATIVE_HISTORY_STEP = 0.5;
+const MAX_FIXED_YEARS = 300;
+const MAX_HISTORY_CYCLES = 12;
+const SAMPLES_PER_HISTORY_CYCLE = 72;
+const MAX_FIXED_TRACE_SAMPLES = 1024;
 const DAYS_PER_YEAR = 365.25;
 const MODES = ['realistic', 'overview', 'atlas'];
 // Keep shared links from the short-lived "Elliptic" label working.
@@ -9041,6 +9228,12 @@ ui = createUI({ actions });
 
 /* ------------------------------------------------------------- URL helpers */
 
+function normalizeTrailSpan(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  if (value < RELATIVE_HISTORY_MIN || value > RELATIVE_HISTORY_MAX) return null;
+  return Math.round(value / RELATIVE_HISTORY_STEP) * RELATIVE_HISTORY_STEP;
+}
+
 function readInitialUrlState() {
   let params;
   try {
@@ -9058,15 +9251,17 @@ function readInitialUrlState() {
   const trail = params.get('trail');
   if (trail === 'solid' || trail === 'fading' || trail === 'always') state.trailStyle = trail;
 
-  const span = Number(params.get('span'));
-  if (TRAIL_SPAN_OPTIONS.includes(span)) state.trailSpan = span;
+  const span = normalizeTrailSpan(Number(params.get('span')));
+  if (span !== null) state.trailSpan = span;
 
   const history = params.get('history');
   if (history === 'fixed') state.historyMode = 'fixed';
   else if (history === 'relative') state.historyMode = 'relative';
 
   const years = Number(params.get('years'));
-  if (FIXED_YEAR_OPTIONS.includes(years)) state.historyYears = years;
+  if (Number.isInteger(years) && years >= 1 && years <= MAX_FIXED_YEARS) {
+    state.historyYears = years;
+  }
 
   const hide = params.get('hide');
   if (hide) {
@@ -9503,17 +9698,6 @@ function fitView() {
 
 /* ------------------------------------------------------------------- traces */
 
-// Fixed-year windows need more samples as their window grows, but the point
-// budget is deliberately capped: 200 years of Mercury is hundreds of loops,
-// and unbounded per-loop sampling would make every rebuild unbounded too.
-function fixedHistorySampleCount(years) {
-  const value = Math.max(1, Number(years) || 1);
-  return Math.min(
-    MAX_FIXED_TRACE_SAMPLES,
-    Math.max(TRACE_SAMPLES, Math.round(TRACE_SAMPLES * Math.sqrt(value))),
-  );
-}
-
 function rebuildTraces(now = performance.now(), force = false) {
   if (!force && traces && Math.abs(state.jd - tracesJd) < 1e-8) return;
   currentPositions = astronomy.getPositions(state.jd);
@@ -9523,10 +9707,11 @@ function rebuildTraces(now = performance.now(), force = false) {
     const fixedWindowDays = state.historyMode === 'fixed'
       ? state.historyYears * DAYS_PER_YEAR
       : null;
+    const fixedHistory = state.historyMode === 'fixed';
     const samples = completeOrbits
       ? COMPLETE_TRACE_SAMPLES
-      : state.historyMode === 'fixed'
-        ? fixedHistorySampleCount(state.historyYears)
+      : fixedHistory
+        ? TRACE_SAMPLES
         : Math.min(
           MAX_TRACE_SAMPLES,
           Math.max(TRACE_SAMPLES, Math.round(220 * Math.max(1, state.trailSpan))),
@@ -9539,6 +9724,10 @@ function rebuildTraces(now = performance.now(), force = false) {
       getPosition: astronomy.getHeliocentricPosition,
       span: state.trailSpan,
       fixedWindowDays,
+      maxCycles: fixedHistory ? MAX_HISTORY_CYCLES : null,
+      samplesPerCycle: fixedHistory ? SAMPLES_PER_HISTORY_CYCLE : null,
+      minSamplesPerTrace: fixedHistory ? TRACE_SAMPLES : null,
+      maxSamplesPerTrace: fixedHistory ? MAX_FIXED_TRACE_SAMPLES : null,
       samples,
     });
     tracesJd = state.jd;
@@ -9680,8 +9869,8 @@ function setTrailStyle(style) {
 }
 
 function setTrailSpan(span) {
-  const next = Number(span);
-  if (!TRAIL_SPAN_OPTIONS.includes(next) || next === state.trailSpan) return;
+  const next = normalizeTrailSpan(Number(span));
+  if (next === null || next === state.trailSpan) return;
   state.trailSpan = next;
   if (state.historyMode === 'fixed') {
     // Keep the relative preference for when the user switches back, but do
@@ -9715,7 +9904,7 @@ function setHistoryMode(mode) {
 
 function setHistoryYears(years) {
   const next = Number(years);
-  if (!FIXED_YEAR_OPTIONS.includes(next)) return;
+  if (!Number.isInteger(next) || next < 1 || next > MAX_FIXED_YEARS) return;
   if (state.historyMode === 'fixed' && state.historyYears === next) return;
   state.historyMode = 'fixed';
   state.historyYears = next;
@@ -10517,7 +10706,11 @@ function boot() {
       historyMode: state.historyMode,
       historyYears: state.historyYears,
       traceWindowDays: Array.isArray(traces) && traces[0] ? traces[0].windowDays : null,
+      requestedWindowDays: state.historyMode === 'fixed'
+        ? state.historyYears * DAYS_PER_YEAR
+        : null,
       traceSampleCount: Array.isArray(traces) && traces[0] ? traces[0].points.length : null,
+      maxHistoryCycles: MAX_HISTORY_CYCLES,
       labels: state.labels,
       playing: state.playing,
       direction: state.direction,

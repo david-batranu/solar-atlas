@@ -40,10 +40,14 @@ const ATLAS_ELEVATION = 90 * DEG;
 const TRACE_SAMPLES = 520;
 const COMPLETE_TRACE_SAMPLES = 560;
 const MAX_TRACE_SAMPLES = 3200;
-const TRAIL_SPAN_OPTIONS = [0.5, 1, 2, 5, 10, 20, 50];
 const HISTORY_MODES = ['relative', 'fixed'];
-const FIXED_YEAR_OPTIONS = [1, 10, 50, 200];
-const MAX_FIXED_TRACE_SAMPLES = 4000;
+const RELATIVE_HISTORY_MIN = 0.5;
+const RELATIVE_HISTORY_MAX = 50;
+const RELATIVE_HISTORY_STEP = 0.5;
+const MAX_FIXED_YEARS = 300;
+const MAX_HISTORY_CYCLES = 12;
+const SAMPLES_PER_HISTORY_CYCLE = 72;
+const MAX_FIXED_TRACE_SAMPLES = 1024;
 const DAYS_PER_YEAR = 365.25;
 const MODES = ['realistic', 'overview', 'atlas'];
 // Keep shared links from the short-lived "Elliptic" label working.
@@ -148,6 +152,12 @@ ui = createUI({ actions });
 
 /* ------------------------------------------------------------- URL helpers */
 
+function normalizeTrailSpan(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  if (value < RELATIVE_HISTORY_MIN || value > RELATIVE_HISTORY_MAX) return null;
+  return Math.round(value / RELATIVE_HISTORY_STEP) * RELATIVE_HISTORY_STEP;
+}
+
 function readInitialUrlState() {
   let params;
   try {
@@ -165,15 +175,17 @@ function readInitialUrlState() {
   const trail = params.get('trail');
   if (trail === 'solid' || trail === 'fading' || trail === 'always') state.trailStyle = trail;
 
-  const span = Number(params.get('span'));
-  if (TRAIL_SPAN_OPTIONS.includes(span)) state.trailSpan = span;
+  const span = normalizeTrailSpan(Number(params.get('span')));
+  if (span !== null) state.trailSpan = span;
 
   const history = params.get('history');
   if (history === 'fixed') state.historyMode = 'fixed';
   else if (history === 'relative') state.historyMode = 'relative';
 
   const years = Number(params.get('years'));
-  if (FIXED_YEAR_OPTIONS.includes(years)) state.historyYears = years;
+  if (Number.isInteger(years) && years >= 1 && years <= MAX_FIXED_YEARS) {
+    state.historyYears = years;
+  }
 
   const hide = params.get('hide');
   if (hide) {
@@ -610,17 +622,6 @@ function fitView() {
 
 /* ------------------------------------------------------------------- traces */
 
-// Fixed-year windows need more samples as their window grows, but the point
-// budget is deliberately capped: 200 years of Mercury is hundreds of loops,
-// and unbounded per-loop sampling would make every rebuild unbounded too.
-function fixedHistorySampleCount(years) {
-  const value = Math.max(1, Number(years) || 1);
-  return Math.min(
-    MAX_FIXED_TRACE_SAMPLES,
-    Math.max(TRACE_SAMPLES, Math.round(TRACE_SAMPLES * Math.sqrt(value))),
-  );
-}
-
 function rebuildTraces(now = performance.now(), force = false) {
   if (!force && traces && Math.abs(state.jd - tracesJd) < 1e-8) return;
   currentPositions = astronomy.getPositions(state.jd);
@@ -630,10 +631,11 @@ function rebuildTraces(now = performance.now(), force = false) {
     const fixedWindowDays = state.historyMode === 'fixed'
       ? state.historyYears * DAYS_PER_YEAR
       : null;
+    const fixedHistory = state.historyMode === 'fixed';
     const samples = completeOrbits
       ? COMPLETE_TRACE_SAMPLES
-      : state.historyMode === 'fixed'
-        ? fixedHistorySampleCount(state.historyYears)
+      : fixedHistory
+        ? TRACE_SAMPLES
         : Math.min(
           MAX_TRACE_SAMPLES,
           Math.max(TRACE_SAMPLES, Math.round(220 * Math.max(1, state.trailSpan))),
@@ -646,6 +648,10 @@ function rebuildTraces(now = performance.now(), force = false) {
       getPosition: astronomy.getHeliocentricPosition,
       span: state.trailSpan,
       fixedWindowDays,
+      maxCycles: fixedHistory ? MAX_HISTORY_CYCLES : null,
+      samplesPerCycle: fixedHistory ? SAMPLES_PER_HISTORY_CYCLE : null,
+      minSamplesPerTrace: fixedHistory ? TRACE_SAMPLES : null,
+      maxSamplesPerTrace: fixedHistory ? MAX_FIXED_TRACE_SAMPLES : null,
       samples,
     });
     tracesJd = state.jd;
@@ -787,8 +793,8 @@ function setTrailStyle(style) {
 }
 
 function setTrailSpan(span) {
-  const next = Number(span);
-  if (!TRAIL_SPAN_OPTIONS.includes(next) || next === state.trailSpan) return;
+  const next = normalizeTrailSpan(Number(span));
+  if (next === null || next === state.trailSpan) return;
   state.trailSpan = next;
   if (state.historyMode === 'fixed') {
     // Keep the relative preference for when the user switches back, but do
@@ -822,7 +828,7 @@ function setHistoryMode(mode) {
 
 function setHistoryYears(years) {
   const next = Number(years);
-  if (!FIXED_YEAR_OPTIONS.includes(next)) return;
+  if (!Number.isInteger(next) || next < 1 || next > MAX_FIXED_YEARS) return;
   if (state.historyMode === 'fixed' && state.historyYears === next) return;
   state.historyMode = 'fixed';
   state.historyYears = next;
@@ -1624,7 +1630,11 @@ function boot() {
       historyMode: state.historyMode,
       historyYears: state.historyYears,
       traceWindowDays: Array.isArray(traces) && traces[0] ? traces[0].windowDays : null,
+      requestedWindowDays: state.historyMode === 'fixed'
+        ? state.historyYears * DAYS_PER_YEAR
+        : null,
       traceSampleCount: Array.isArray(traces) && traces[0] ? traces[0].points.length : null,
+      maxHistoryCycles: MAX_HISTORY_CYCLES,
       labels: state.labels,
       playing: state.playing,
       direction: state.direction,

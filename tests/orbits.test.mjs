@@ -1243,8 +1243,8 @@ test('getTraceWindowDays: history span multiplies base windows and respects caps
   assertClose(getTraceWindowDays(earth, sun, 10), 365.256 * 10, 1e-9);
 
   // An outer-planet orbit can push beyond the generic cap but is never
-  // shortened. Pluto's base (≈248 yr) extends to the 250-year ceiling.
-  assert.equal(getTraceWindowDays(pluto, sun, 10), 250 * 365.25);
+  // shortened. Pluto's base (≈248 yr) extends to the 300-year ceiling.
+  assert.equal(getTraceWindowDays(pluto, sun, 10), 300 * 365.25);
   const ultraSlow = makeBody({
     id: 'ultra-slow',
     parentId: 'sun',
@@ -1253,12 +1253,12 @@ test('getTraceWindowDays: history span multiplies base windows and respects caps
   });
   assert.equal(getTraceWindowDays(ultraSlow, sun, 50), 400 * 365.25);
 
-  // Generic windows can exceed their 40-year base, but stop at 250 years.
+  // Generic windows can exceed their 40-year base, but stop at 300 years.
   const slowA = makeBody({ id: 'slow-a', yearDays: 1000, parentId: null });
   const slowB = makeBody({ id: 'slow-b', yearDays: 1000.01, parentId: null });
   const slowBase = getTraceWindowDays(slowA, slowB);
   assertClose(getTraceWindowDays(slowA, slowB, 2), slowBase * 2, 1e-9);
-  assertClose(getTraceWindowDays(slowA, slowB, 50), 250 * 365.25, 1e-9);
+  assertClose(getTraceWindowDays(slowA, slowB, 50), 300 * 365.25, 1e-9);
 
   // Extended options and the documented clamp.
   assert.equal(getTraceWindowDays(earth, sun, Number.NaN), 365.256);
@@ -1327,7 +1327,7 @@ test('getTraceWindowDays: fixed windows override the relative multiplier', () =>
   assert.equal(getTraceWindowDays(earth, sun, 1, fixed), fixed);
   assert.equal(getTraceWindowDays(earth, sun, 50, fixed), fixed);
   assert.equal(getTraceWindowDays(BY_ID.pluto, sun, 1, 365.25), 365.25);
-  assert.equal(getTraceWindowDays(earth, sun, 1, 300 * 365.25), 250 * 365.25);
+  assert.equal(getTraceWindowDays(earth, sun, 1, 400 * 365.25), 300 * 365.25);
   // Invalid fixed values fall back to the relative window.
   assert.equal(getTraceWindowDays(earth, sun, 2, null), 365.256 * 2);
   assert.equal(getTraceWindowDays(earth, sun, 2, Number.NaN), 365.256 * 2);
@@ -1351,4 +1351,38 @@ test('buildTraces: a fixed window is shared by every trace', () => {
     assert.equal(trace.endJd, jd);
     assertClose(trace.startJd, jd - fixed, 1e-12);
   }
+});
+
+
+test('buildTraces: overlapping histories are cycle-capped with adaptive sampling', () => {
+  const jd = J2000_JD + 3000;
+  const requested = 300 * 365.25;
+  const traces = buildTraces({
+    jd,
+    centerId: 'sun',
+    bodies: BODIES,
+    getPositions: fakeSolarSystemPositions,
+    fixedWindowDays: requested,
+    maxCycles: 12,
+    samplesPerCycle: 72,
+    minSamplesPerTrace: 10,
+    maxSamplesPerTrace: 1000,
+    samples: 12,
+  });
+
+  const earth = traces.find((trace) => trace.bodyId === 'earth');
+  const pluto = traces.find((trace) => trace.bodyId === 'pluto');
+  assert.ok(earth);
+  assert.ok(pluto);
+
+  // Earth repeats twelve times, so drawing 300 loops would be redundant.
+  assertClose(earth.windowDays, 12 * 365.256, 1e-9);
+  assert.equal(earth.requestedWindowDays, requested);
+  assertClose(earth.cycles, 12, 1e-9);
+  assert.equal(earth.points.length, 864);
+
+  // Pluto has not completed two cycles in 300 years, so it keeps the window.
+  assertClose(pluto.windowDays, requested, 1e-12);
+  assertClose(pluto.cycles, requested / 90560, 1e-9);
+  assert.ok(pluto.points.length >= 10 && pluto.points.length <= 1000);
 });

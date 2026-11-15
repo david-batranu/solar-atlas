@@ -14,7 +14,7 @@ Target: 60fps on a laptop, graceful on mobile. No external runtime assets or fon
   mode using the same Solid/Fading/Always and History behavior as Orbits, and a top-down **Atlas**
   mode that compresses radial distance so the entire system is legible at once.
 - Every non-center world can be hidden independently; hiding removes its marker, label and orbit trace and excludes it from Fit. The center world always remains visible. Persist the set in the URL as `hide=<comma-separated ids>`.
-- Solid and Fading history has two modes: Relative (0.5×–50× the per-body automatic window via `span`) and Fixed (1, 10, 50 or 200 years for every body via `history=fixed&years=...`). Always ignores the window and draws complete parent orbits. Fading keeps a faint guide across the full selected history. Hovering or tapping an orbit segment shows its body and UTC date/time.
+- Solid and Fading history has two slider modes: Relative (0.5×–50× the per-body automatic window via `span`) and Fixed (1–300 years via `history=fixed&years=...`). Fixed windows are overlap-limited to twelve natural cycles per body and use adaptive per-trace sampling; outer worlds can use the full span while fast inner worlds keep only recent representative loops. Always ignores History and draws complete parent orbits. Fading keeps a faint guide across the displayed history. Hovering or tapping an orbit segment shows its body and UTC date/time.
 - Orbit lines / labels remain performant and legible in every center and in Overview/Atlas. On touch, a two-finger drag tilts/rotates the Orbits view (pinch still zooms) and tapping an orbit segment opens its UTC date card. The legacy URL value `mode=elliptic` normalizes to `overview`.
 
 ## Files and ownership
@@ -109,7 +109,7 @@ export const ATLAS_SCALE_AU = 0.18;
 export function compressDistance(rAU)            // natural-log radial compression, r>=0 -> display AU
 export function displayPosition(p, blend)        // blend 0 = true, 1 = compressed; never mutate p
 export function getTraceWindowDays(target, center, span = 1, fixedWindowDays = null)
-export function buildTraces({ jd, centerId, bodies, getPositions, getPosition?, span = 1, fixedWindowDays = null, samples = 480 })
+export function buildTraces({ jd, centerId, bodies, getPositions, getPosition?, span = 1, fixedWindowDays = null, maxCycles = null, samplesPerCycle = null, minSamplesPerTrace = null, maxSamplesPerTrace = null, samples = 480 })
 ```
 
 `buildTraces` returns only bodies other than the center, each:

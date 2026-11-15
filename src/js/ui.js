@@ -13,8 +13,8 @@ export const SPEED_MAX = 365.25; // one year per real second
 export const DEFAULT_SPEED = 5; // five days per real second
 export const SPEED_PRESETS = [1 / 24, 1, 7, 30.436875, 365.25];
 
-const RELATIVE_HISTORY_VALUES = [0.5, 1, 2, 5, 10, 20, 50];
-const FIXED_HISTORY_YEARS = [1, 10, 50, 200];
+const RELATIVE_HISTORY = { min: 0.5, max: 50, step: 0.5 };
+const FIXED_HISTORY = { min: 1, max: 300, step: 1 };
 
 const KIND_LABEL = {
   star: 'Star',
@@ -152,7 +152,7 @@ function centerButtonMeta(body) {
 
 export function createUI({ actions }) {
   let currentHistoryMode = 'relative';
-  let renderedHistoryMode = null;
+  let historyCommitTimer = null;
 
   const refs = {
     body: document.body,
@@ -170,7 +170,9 @@ export function createUI({ actions }) {
     trailSwitch: $('#trail-switch'),
     historyControl: $('#history-control'),
     historyModeButtons: Array.from(document.querySelectorAll('[data-history-mode]')),
-    historyValue: $('#history-value'),
+    historyRange: $('#history-range'),
+    historyOutput: $('#history-output'),
+    historyHint: $('#history-hint'),
     worldsOpen: $('#worlds-open'),
     worldsCount: $('#worlds-count'),
     worldsDialog: $('#worlds-dialog'),
@@ -641,19 +643,44 @@ export function createUI({ actions }) {
     }
   }
 
-  function renderHistoryOptions(mode) {
-    const entries = mode === 'fixed'
-      ? FIXED_HISTORY_YEARS.map((years) => [
-        String(years),
-        years === 1 ? '1 year' : `${years} years`,
-      ])
-      : RELATIVE_HISTORY_VALUES.map((value) => [String(value), `${value}×`]);
-    refs.historyValue.replaceChildren(...entries.map(([value, label]) => {
-      const option = document.createElement('option');
-      option.value = value;
-      option.textContent = label;
-      return option;
-    }));
+  function clearHistoryTimer() {
+    if (historyCommitTimer) {
+      window.clearTimeout(historyCommitTimer);
+      historyCommitTimer = null;
+    }
+  }
+
+  function formatHistoryValue(mode, value) {
+    if (mode === 'fixed') {
+      return `${value} ${value === 1 ? 'year' : 'years'}`;
+    }
+    return `${value}×`;
+  }
+
+  function updateHistoryControl(mode, value) {
+    const fixed = mode === 'fixed';
+    const spec = fixed ? FIXED_HISTORY : RELATIVE_HISTORY;
+    refs.historyRange.min = String(spec.min);
+    refs.historyRange.max = String(spec.max);
+    refs.historyRange.step = String(spec.step);
+    refs.historyRange.value = String(value);
+    const progress = (Number(value) - spec.min) / (spec.max - spec.min);
+    refs.historyRange.style.setProperty('--history-fill', `${Math.max(0, Math.min(1, progress)) * 100}%`);
+    const label = formatHistoryValue(mode, value);
+    refs.historyOutput.textContent = label;
+    refs.historyRange.setAttribute('aria-label', fixed
+      ? 'Fixed history window in years'
+      : 'Relative history multiplier');
+    refs.historyRange.setAttribute('aria-valuetext', label);
+    if (fixed) refs.historyRange.setAttribute('aria-describedby', 'history-hint');
+    else refs.historyRange.removeAttribute('aria-describedby');
+  }
+
+  function commitHistoryValue() {
+    clearHistoryTimer();
+    const value = Number(refs.historyRange.value);
+    if (currentHistoryMode === 'fixed') actions.setHistoryYears(Math.round(value));
+    else actions.setTrailSpan(value);
   }
 
   function sync(state) {
@@ -706,17 +733,13 @@ export function createUI({ actions }) {
       button.classList.toggle('is-active', active);
       button.setAttribute('aria-pressed', active ? 'true' : 'false');
     }
-    if (renderedHistoryMode !== historyMode) {
-      renderHistoryOptions(historyMode);
-      renderedHistoryMode = historyMode;
-    }
-    refs.historyValue.value = String(
-      historyMode === 'fixed' ? state.historyYears : state.trailSpan
-    );
+    const historyValue = historyMode === 'fixed' ? state.historyYears : state.trailSpan;
+    updateHistoryControl(historyMode, historyValue);
+    refs.historyHint.hidden = historyMode !== 'fixed';
     refs.historyControl.title = always
       ? 'Always shows complete orbits.'
       : historyMode === 'fixed'
-        ? `Fixed ${state.historyYears}-year window for every visible world.`
+        ? `Fixed ${state.historyYears}-year limit for every visible world. Repeated cycles stop after twelve loops to keep overlapping history readable and fast.`
         : 'Relative windows: multiples of each body\'s automatic history.';
 
     // Labels.
@@ -831,13 +854,19 @@ export function createUI({ actions }) {
     }
 
     for (const button of refs.historyModeButtons) {
-      button.addEventListener('click', () => actions.setHistoryMode(button.dataset.historyMode));
+      button.addEventListener('click', () => {
+        clearHistoryTimer();
+        actions.setHistoryMode(button.dataset.historyMode);
+      });
     }
 
-    refs.historyValue.addEventListener('change', () => {
-      const value = Number(refs.historyValue.value);
-      if (currentHistoryMode === 'fixed') actions.setHistoryYears(value);
-      else actions.setTrailSpan(value);
+    refs.historyRange.addEventListener('input', () => {
+      updateHistoryControl(currentHistoryMode, Number(refs.historyRange.value));
+      clearHistoryTimer();
+      historyCommitTimer = window.setTimeout(commitHistoryValue, 140);
+    });
+    refs.historyRange.addEventListener('change', () => {
+      commitHistoryValue();
     });
 
     refs.worldsOpen.addEventListener('click', () => openWorldsDialog());

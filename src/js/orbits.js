@@ -42,7 +42,7 @@ const MIN_TRACE_WINDOW_DAYS = 120;
 const MAX_TRACE_WINDOW_DAYS = 40 * DAYS_PER_YEAR;
 
 /** Hard ceiling for user-extended history, unless one base orbit is longer. */
-const MAX_TRAIL_HISTORY_DAYS = 250 * DAYS_PER_YEAR;
+const MAX_TRAIL_HISTORY_DAYS = 300 * DAYS_PER_YEAR;
 
 /** A local lunar trail covers a little over two sidereal months. */
 const LUNAR_TRAIL_ORBITS = 2.2;
@@ -149,7 +149,7 @@ export function displayPosition(p, blend) {
  *    than a moon's `orbitDays` is essential for correct geocentric rosettes.
  *
  * The optional `span` multiplier stretches (or shortens) this base window for
- * the user-facing history control. The result is capped at 250 years unless a
+ * the user-facing history control. The result is capped at 300 years unless a
  * single base orbit is already longer; an outer planet's full orbit is never
  * truncated to the generic cap. Missing/null/invalid period fields are handled
  * defensively: a usable value is chosen when possible and the fallback is
@@ -159,7 +159,7 @@ export function displayPosition(p, blend) {
  * @param {object} center BODIES-shaped centre.
  * @param {number} [span=1] History multiplier, clamped to [0.5, 50].
  * @param {number|null} [fixedWindowDays=null] Absolute history window in
- *   days. When valid, this overrides `span` and is capped at 250 years.
+ *   days. When valid, this overrides `span` and is capped at 300 years.
  * @returns {number} Window length in days (> 0, finite).
  * @throws {TypeError} If target or center is not an object.
  */
@@ -245,7 +245,16 @@ export function getTraceWindowDays(target, center, span = 1, fixedWindowDays = n
  * @param {number} [options.span=1] History multiplier for the trace window,
  *   clamped to [0.5, 50]. Ignored when `fixedWindowDays` is supplied.
  * @param {number|null} [options.fixedWindowDays=null] Absolute history
- *   window in days, shared by every trace (capped at 250 years).
+ *   window in days, shared by every trace (capped at 300 years).
+ * @param {number|null} [options.maxCycles=null] Optional cap on the number of
+ *   natural apparent cycles retained per trace. Requires fixedWindowDays to be
+ *   useful; works alongside samplesPerCycle.
+ * @param {number|null} [options.samplesPerCycle=null] When set, each trace gets
+ *   roughly this many samples per retained cycle instead of the global count.
+ * @param {number|null} [options.minSamplesPerTrace=null] Lower bound for the
+ *   per-cycle sample count.
+ * @param {number|null} [options.maxSamplesPerTrace=null] Upper bound for the
+ *   per-cycle sample count.
  * @param {number} [options.samples=480] Samples per trace (normalised to an
  *   integer in [2, 20 000]).
  * @returns {Array<{
@@ -269,6 +278,10 @@ export function buildTraces({
   getPosition = null,
   span = 1,
   fixedWindowDays = null,
+  maxCycles = null,
+  samplesPerCycle = null,
+  minSamplesPerTrace = null,
+  maxSamplesPerTrace = null,
   samples = DEFAULT_SAMPLE_COUNT,
 } = {}) {
   if (typeof getPositions !== 'function') {
@@ -305,6 +318,10 @@ export function buildTraces({
       getPosition: typeof getPosition === 'function' ? getPosition : null,
       span,
       fixedWindowDays,
+      maxCycles,
+      samplesPerCycle,
+      minSamplesPerTrace,
+      maxSamplesPerTrace,
       sampleCount,
     });
     if (trace !== null) traces.push(trace);
@@ -575,6 +592,29 @@ export function clampNumber(value, min, max) {
 /* ------------------------------------------------------------------------- */
 
 /**
+ * One natural repetition period for the centre-relative path. Used only to
+ * bound redundant overlapping history; not to choose the public base window.
+ *
+ * @private
+ */
+function naturalCycleDays(target, center) {
+  if (target.id === 'sun') {
+    return positiveDays(center.yearDays);
+  }
+  if (target.parentId != null && target.parentId === center.id) {
+    return positiveDays(target.orbitDays);
+  }
+  if (center.parentId != null && center.parentId === target.id) {
+    return positiveDays(center.orbitDays);
+  }
+  if (target.id === 'moon' && center.id !== 'earth') {
+    return positiveDays(target.orbitDays) ?? DEFAULT_LUNAR_ORBIT_DAYS;
+  }
+  const synodicDays = synodicPeriodDays(target.yearDays, center.yearDays);
+  return Number.isFinite(synodicDays) && synodicDays > 0 ? synodicDays : null;
+}
+
+/**
  * Sample one trace over its window, returning null if the body cannot be
  * rendered completely. The centre and target are always evaluated from the
  * same sample instant.
@@ -590,11 +630,33 @@ function sampleTrace({
   getPosition,
   span,
   fixedWindowDays,
+  maxCycles,
+  samplesPerCycle,
+  minSamplesPerTrace,
+  maxSamplesPerTrace,
   sampleCount,
 }) {
-  const windowDays = safeWindowDays(
+  const requestedWindowDays = safeWindowDays(
     getTraceWindowDays(target, center, span, fixedWindowDays)
   );
+  const cycleDays = naturalCycleDays(target, center);
+  const cycleLimit = positiveDays(maxCycles);
+  const windowDays = cycleLimit !== null && cycleDays !== null
+    ? Math.min(requestedWindowDays, cycleDays * cycleLimit)
+    : requestedWindowDays;
+
+  const perCycle = positiveDays(samplesPerCycle);
+  if (perCycle !== null && cycleDays !== null) {
+    const cycles = windowDays / cycleDays;
+    const minCount = normalizeSampleCount(minSamplesPerTrace ?? 2);
+    const maxCount = normalizeSampleCount(maxSamplesPerTrace ?? MAX_SAMPLE_COUNT);
+    sampleCount = normalizeSampleCount(clampNumber(
+      Math.round(cycles * perCycle),
+      minCount,
+      maxCount
+    ));
+  }
+
   const startJd = jd - windowDays;
   const stepDays = windowDays / (sampleCount - 1);
   const points = new Array(sampleCount);
@@ -642,6 +704,9 @@ function sampleTrace({
     points,
     alphas: buildAlphaProfile(sampleCount),
     windowDays,
+    requestedWindowDays,
+    cycleDays,
+    cycles: cycleDays !== null ? windowDays / cycleDays : null,
     startJd,
     endJd: jd,
     isClosed: target.parentId != null && target.parentId === centerId,
