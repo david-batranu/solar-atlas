@@ -2996,9 +2996,6 @@ body.is-ready .view-controls {
     margin-left: auto;
   }
 
-  .hover-card {
-    display: none !important;
-  }
 
   /* While the center list is open, the zoom stack would peek out from under
      the popover's lower edge. Take it out of the composition cleanly. */
@@ -3399,12 +3396,6 @@ body.reduced-motion .timebar__date .eyebrow::before {
   animation: none !important;
 }
 
-@media (hover: none) {
-  .hover-card {
-    display: none !important;
-  }
-}
-
 @media (prefers-contrast: more) {
   :root {
     --ink-muted: #b3c0d0;
@@ -3442,6 +3433,25 @@ body.reduced-motion .timebar__date .eyebrow::before {
     clip-path: inset(50%);
     white-space: nowrap;
     border: 0;
+  }
+}
+
+
+/* The date card is now also a tap target on touch; give it a comfortable
+   reading size instead of the dense desktop micro-type. */
+@media (pointer: coarse) {
+  .hover-card {
+    max-width: min(268px, calc(100vw - 20px));
+    padding: 8px 11px;
+  }
+
+  .hover-card strong {
+    font-size: 0.8125rem;
+  }
+
+  .hover-card__body > span {
+    font-size: 0.6875rem;
+    letter-spacing: 0.02em;
   }
 }
 
@@ -4419,11 +4429,11 @@ body.reduced-motion .timebar__date .eyebrow::before {
       <div class="help-grid">
         <div class="help-row">
           <span class="shortcut">Click</span>
-          <p>Center the map on a world. The Sun, every planet, Pluto and the Moon are valid centers.</p>
+          <p>Click a world to center the map; on touch, tap a world or its label. The Sun, every planet, Pluto and the Moon are valid centers. Tapping an orbit line away from a marker opens its date card.</p>
         </div>
         <div class="help-row">
           <span class="shortcut">Drag</span>
-          <p>Pan the map. In Orbits, hold <kbd>Shift</kbd> while dragging to tilt and rotate. Arrow keys pan; <kbd>Shift</kbd> + arrows tilt in Orbits.</p>
+          <p>Pan the map. In Orbits, <kbd>Shift</kbd> + drag on desktop or drag with two fingers on touch to tilt and rotate. Pinch or scroll to zoom; arrow keys pan, and <kbd>Shift</kbd> + arrows tilt on desktop.</p>
         </div>
         <div class="help-row">
           <span class="shortcut">Scroll</span>
@@ -4431,7 +4441,7 @@ body.reduced-motion .timebar__date .eyebrow::before {
         </div>
         <div class="help-row">
           <span class="shortcut">Hover</span>
-          <p>Point at any orbit line to see the UTC date and time when that body occupied that spot. Dates remain readable on the faded part of a long trail.</p>
+          <p>Hover any orbit line on desktop, or tap an orbit line on touch, to see the UTC date and time when that body occupied that spot. Tap elsewhere to dismiss it.</p>
         </div>
         <div class="help-row">
           <span class="shortcut">Modes</span>
@@ -8426,7 +8436,16 @@ function createUI({ actions }) {
     refs.hoverCard.classList.remove('is-visible');
   }
 
-  function showHover({ name, meta, color, x, y, isCenter, action = null }) {
+  function showHover({
+    name,
+    meta,
+    color,
+    x,
+    y,
+    isCenter,
+    action = null,
+    preferBelow = false,
+  }) {
     refs.hoverDot.style.setProperty('--body-color', color);
     refs.hoverName.textContent = name;
     refs.hoverMeta.textContent = meta;
@@ -8434,10 +8453,15 @@ function createUI({ actions }) {
     refs.hoverCard.hidden = false;
     refs.hoverCard.classList.add('is-visible');
 
-    const cardW = 232;
-    const cardH = 52;
+    const cardW = refs.hoverCard.offsetWidth || 232;
+    const cardH = refs.hoverCard.offsetHeight || 52;
     const left = clamp(x + 16, 10, window.innerWidth - cardW - 10);
-    const top = clamp(y - 58, 10, window.innerHeight - cardH - 10);
+    const below = y + 16;
+    const above = y - cardH - 12;
+    let top = preferBelow ? below : above;
+    if (top < 10) top = below;
+    else if (top + cardH > window.innerHeight - 10) top = above;
+    top = clamp(top, 10, window.innerHeight - cardH - 10);
     refs.hoverCard.style.left = `${left}px`;
     refs.hoverCard.style.top = `${top}px`;
   }
@@ -8452,6 +8476,8 @@ function createUI({ actions }) {
       y,
       isCenter: false,
       action: '',
+      preferBelow: (globalThis.matchMedia?.('(pointer: coarse)')?.matches ?? false)
+        && y < window.innerHeight * 0.55,
     });
   }
 
@@ -9721,31 +9747,43 @@ function pointerPosition(event) {
   return { x: event.clientX, y: event.clientY };
 }
 
+function showOrbitPointAt(clientX, clientY, threshold = 8) {
+  const rect = canvas.getBoundingClientRect();
+  const picked = renderer.pickOrbitPoint(
+    clientX - rect.left,
+    clientY - rect.top,
+    threshold,
+  );
+  if (!picked) return false;
+  const body = BY_ID[picked.bodyId];
+  if (!body) return false;
+  state.hoveredId = null;
+  orbitHover = picked;
+  canvas.style.cursor = 'crosshair';
+  const date = astronomy.dateFromJulianDate(picked.jd);
+  ui.showOrbitHover({
+    name: body.name,
+    color: body.color,
+    date,
+    x: clientX,
+    y: clientY,
+  });
+  return true;
+}
+
+function inspectOrSelectAt(clientX, clientY) {
+  if (hitTest(clientX, clientY)) {
+    selectWorldAt(clientX, clientY);
+    return;
+  }
+  // Fingers are less precise than a mouse, so accept a wider hit band.
+  if (!showOrbitPointAt(clientX, clientY, 18)) hideHover();
+}
+
 function updateHover(clientX, clientY) {
   const id = hitTest(clientX, clientY);
   if (!id) {
-    const rect = canvas.getBoundingClientRect();
-    const picked = renderer.pickOrbitPoint(
-      clientX - rect.left,
-      clientY - rect.top,
-      8,
-    );
-    if (picked) {
-      const body = BY_ID[picked.bodyId];
-      if (!body) return;
-      state.hoveredId = null;
-      orbitHover = picked;
-      canvas.style.cursor = 'crosshair';
-      const date = astronomy.dateFromJulianDate(picked.jd);
-      ui.showOrbitHover({
-        name: body.name,
-        color: body.color,
-        date,
-        x: clientX,
-        y: clientY,
-      });
-      return;
-    }
+    if (showOrbitPointAt(clientX, clientY, 8)) return;
 
     if (state.hoveredId !== null || orbitHover !== null) {
       state.hoveredId = null;
@@ -9827,6 +9865,7 @@ function beginPinch() {
   if (points.length < 2) return;
   const [a, b] = points;
   const distance = Math.max(1, Math.hypot(b.x - a.x, b.y - a.y));
+  cancelCameraTween();
   gesture = {
     kind: 'pinch',
     startDistance: distance,
@@ -9894,7 +9933,15 @@ canvas.addEventListener('pointermove', (event) => {
     if (Number.isFinite(factor) && Math.abs(factor - 1) > 0.0005) {
       zoomAt(camera, factor, midX, midY, viewport, scaleLimits);
     }
-    panBy(camera, midX - gesture.lastMidX, midY - gesture.lastMidY);
+    const dx = midX - gesture.lastMidX;
+    const dy = midY - gesture.lastMidY;
+    if (state.mode === 'realistic') {
+      // Two-finger drag tilts and rotates in Orbits; the pinch distance still
+      // controls zoom, so touch users can compose the view with one gesture.
+      rotateBy(camera, dx, dy, { minElevation: 8 * DEG, maxElevation: 90 * DEG });
+    } else {
+      panBy(camera, dx, dy);
+    }
     gesture.lastMidX = midX;
     gesture.lastMidY = midY;
     gesture.travel += Math.abs(distance / gesture.startDistance - 1) * 100;
@@ -9929,7 +9976,8 @@ function finishPointer(event) {
   pointers.delete(event.pointerId);
 
   if (wasClick && point) {
-    selectWorldAt(point.x, point.y);
+    if (event.pointerType === 'touch') inspectOrSelectAt(point.x, point.y);
+    else selectWorldAt(point.x, point.y);
   }
 
   if (pointers.size === 0) {
@@ -9957,9 +10005,17 @@ canvas.addEventListener('pointercancel', (event) => {
     suppressTap = false;
   }
 });
-canvas.addEventListener('pointerleave', () => {
-  if (!gesture) hideHover();
+canvas.addEventListener('pointerleave', (event) => {
+  // A touch pointer leaves as the finger lifts; that must not dismiss the
+  // date card that was just opened by the tap.
+  if (event.pointerType !== 'touch' && !gesture) hideHover();
 });
+
+// Tapping any chrome control should dismiss a touch date card instead of
+// leaving a stale date floating over the new view.
+document.addEventListener('pointerdown', (event) => {
+  if (event.target !== canvas) hideHover();
+}, true);
 
 canvas.addEventListener('wheel', (event) => {
   event.preventDefault();
@@ -10335,12 +10391,12 @@ function boot() {
       bodyCount: BODIES.length,
       visibleBodyCount: visibleBodyCount(),
     }),
-    pickOrbitAt: (clientX, clientY) => {
+    pickOrbitAt: (clientX, clientY, threshold = 8) => {
       const rect = canvas.getBoundingClientRect();
       const hit = renderer.pickOrbitPoint(
         Number(clientX) - rect.left,
         Number(clientY) - rect.top,
-        8,
+        Number(threshold) || 8,
       );
       if (!hit) return null;
       return {

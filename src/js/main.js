@@ -956,31 +956,43 @@ function pointerPosition(event) {
   return { x: event.clientX, y: event.clientY };
 }
 
+function showOrbitPointAt(clientX, clientY, threshold = 8) {
+  const rect = canvas.getBoundingClientRect();
+  const picked = renderer.pickOrbitPoint(
+    clientX - rect.left,
+    clientY - rect.top,
+    threshold,
+  );
+  if (!picked) return false;
+  const body = BY_ID[picked.bodyId];
+  if (!body) return false;
+  state.hoveredId = null;
+  orbitHover = picked;
+  canvas.style.cursor = 'crosshair';
+  const date = astronomy.dateFromJulianDate(picked.jd);
+  ui.showOrbitHover({
+    name: body.name,
+    color: body.color,
+    date,
+    x: clientX,
+    y: clientY,
+  });
+  return true;
+}
+
+function inspectOrSelectAt(clientX, clientY) {
+  if (hitTest(clientX, clientY)) {
+    selectWorldAt(clientX, clientY);
+    return;
+  }
+  // Fingers are less precise than a mouse, so accept a wider hit band.
+  if (!showOrbitPointAt(clientX, clientY, 18)) hideHover();
+}
+
 function updateHover(clientX, clientY) {
   const id = hitTest(clientX, clientY);
   if (!id) {
-    const rect = canvas.getBoundingClientRect();
-    const picked = renderer.pickOrbitPoint(
-      clientX - rect.left,
-      clientY - rect.top,
-      8,
-    );
-    if (picked) {
-      const body = BY_ID[picked.bodyId];
-      if (!body) return;
-      state.hoveredId = null;
-      orbitHover = picked;
-      canvas.style.cursor = 'crosshair';
-      const date = astronomy.dateFromJulianDate(picked.jd);
-      ui.showOrbitHover({
-        name: body.name,
-        color: body.color,
-        date,
-        x: clientX,
-        y: clientY,
-      });
-      return;
-    }
+    if (showOrbitPointAt(clientX, clientY, 8)) return;
 
     if (state.hoveredId !== null || orbitHover !== null) {
       state.hoveredId = null;
@@ -1062,6 +1074,7 @@ function beginPinch() {
   if (points.length < 2) return;
   const [a, b] = points;
   const distance = Math.max(1, Math.hypot(b.x - a.x, b.y - a.y));
+  cancelCameraTween();
   gesture = {
     kind: 'pinch',
     startDistance: distance,
@@ -1129,7 +1142,15 @@ canvas.addEventListener('pointermove', (event) => {
     if (Number.isFinite(factor) && Math.abs(factor - 1) > 0.0005) {
       zoomAt(camera, factor, midX, midY, viewport, scaleLimits);
     }
-    panBy(camera, midX - gesture.lastMidX, midY - gesture.lastMidY);
+    const dx = midX - gesture.lastMidX;
+    const dy = midY - gesture.lastMidY;
+    if (state.mode === 'realistic') {
+      // Two-finger drag tilts and rotates in Orbits; the pinch distance still
+      // controls zoom, so touch users can compose the view with one gesture.
+      rotateBy(camera, dx, dy, { minElevation: 8 * DEG, maxElevation: 90 * DEG });
+    } else {
+      panBy(camera, dx, dy);
+    }
     gesture.lastMidX = midX;
     gesture.lastMidY = midY;
     gesture.travel += Math.abs(distance / gesture.startDistance - 1) * 100;
@@ -1164,7 +1185,8 @@ function finishPointer(event) {
   pointers.delete(event.pointerId);
 
   if (wasClick && point) {
-    selectWorldAt(point.x, point.y);
+    if (event.pointerType === 'touch') inspectOrSelectAt(point.x, point.y);
+    else selectWorldAt(point.x, point.y);
   }
 
   if (pointers.size === 0) {
@@ -1192,9 +1214,17 @@ canvas.addEventListener('pointercancel', (event) => {
     suppressTap = false;
   }
 });
-canvas.addEventListener('pointerleave', () => {
-  if (!gesture) hideHover();
+canvas.addEventListener('pointerleave', (event) => {
+  // A touch pointer leaves as the finger lifts; that must not dismiss the
+  // date card that was just opened by the tap.
+  if (event.pointerType !== 'touch' && !gesture) hideHover();
 });
+
+// Tapping any chrome control should dismiss a touch date card instead of
+// leaving a stale date floating over the new view.
+document.addEventListener('pointerdown', (event) => {
+  if (event.target !== canvas) hideHover();
+}, true);
 
 canvas.addEventListener('wheel', (event) => {
   event.preventDefault();
@@ -1570,12 +1600,12 @@ function boot() {
       bodyCount: BODIES.length,
       visibleBodyCount: visibleBodyCount(),
     }),
-    pickOrbitAt: (clientX, clientY) => {
+    pickOrbitAt: (clientX, clientY, threshold = 8) => {
       const rect = canvas.getBoundingClientRect();
       const hit = renderer.pickOrbitPoint(
         Number(clientX) - rect.left,
         Number(clientY) - rect.top,
-        8,
+        Number(threshold) || 8,
       );
       if (!hit) return null;
       return {

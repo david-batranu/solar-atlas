@@ -15,7 +15,7 @@ Target: 60fps on a laptop, graceful on mobile. No external runtime assets or fon
   mode that compresses radial distance so the entire system is legible at once.
 - Every non-center world can be hidden independently; hiding removes its marker, label and orbit trace and excludes it from Fit. The center world always remains visible. Persist the set in the URL as `hide=<comma-separated ids>`.
 - Solid and Fading history is user-adjustable from 0.5× to 50× the base trace window (`span` URL parameter); Always ignores the multiplier and draws complete parent orbits. Fading keeps a faint guide across the full selected history. Hovering an orbit segment shows its body and UTC date/time.
-- Orbit lines / labels remain performant and legible in every center and in Overview/Atlas. The legacy URL value `mode=elliptic` normalizes to `overview`.
+- Orbit lines / labels remain performant and legible in every center and in Overview/Atlas. On touch, a two-finger drag tilts/rotates the Orbits view (pinch still zooms) and tapping an orbit segment opens its UTC date card. The legacy URL value `mode=elliptic` normalizes to `overview`.
 
 ## Files and ownership
 

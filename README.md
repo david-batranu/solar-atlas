@@ -39,6 +39,9 @@ external fonts or images. Every world can be shown or hidden independently, incl
 ![Orbit point date tooltip](docs/screenshots/orbit-date-tooltip.png)
 *Hovering any orbit line reveals the exact UTC date and time at that position, even on faded history.*
 
+![Mobile orbit date card](docs/screenshots/mobile-orbit-date.png)
+*On touch, tap any orbit line for its UTC date card. Two-finger drag tilts and rotates the Orbits view; pinch still zooms.*
+
 ![Solar Atlas — Visible worlds dialog](docs/screenshots/visible-worlds-dialog.png)
 *The Worlds checklist. Show all, clear to the center, then tick the worlds you want to inspect.*
 
@@ -66,13 +69,13 @@ Node 18+ is recommended. There is no install step.
 | --- | --- |
 | **Center picker** in the left panel | Re-anchor the whole map on the Sun, a planet, Pluto, or the Moon. |
 | **Click a world or its label** | Centre the map on that world. |
-| **Hover an orbit point** | See the body and the UTC date/time it occupied that point. |
+| **Hover or tap an orbit point** | See the body and the UTC date/time it occupied that point. On touch, tap the line; tap elsewhere to dismiss. |
 | **Orbit lines: Solid / Fading / Always** | Continuous hairlines, luminous comet-tail trails, or complete closed orbits at full brightness with no fading. Always shows each world’s full orbit around its parent, translated into the current center’s frame. Available in Orbits, Overview and Atlas. |
 | **Visible worlds** | Open **Worlds** beside Orbit lines to show or hide any world’s marker, label and orbit. Use **Center only** to clear the field, then tick the worlds you want. The center world is always visible. |
 | **Span** beside Orbit lines | Stretch or shorten the Solid/Fading history from 0.5× to 50× its default window. Longer spans keep older positions available; Fading adds a faint guide across the whole window so its oldest end does not disappear. |
 | **Orbits / Overview / Atlas** | Tilted true-scale view; top-down true-scale view with no radial compression; or the top-down radially compressed whole-system map. Overview uses the same line style and Span controls as Orbits. |
 | **Drag** | Pan the map. |
-| **Shift + drag** | Tilt and rotate the orbit view (locked in Overview and Atlas). |
+| **Shift + drag** (desktop) / **two-finger drag** (touch) | Tilt and rotate the orbit view in Orbits (locked in Overview and Atlas). Pinch to zoom. |
 | **Scroll / pinch** | Zoom toward the pointer or pinch center. |
 | **Play / reverse**, tempo slider, HR–YR presets | Control simulated time from 30 minutes to one year per real second, forwards or backwards. |
 | **Now** | Return to the present moment. |

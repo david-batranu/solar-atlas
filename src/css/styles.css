@@ -2985,9 +2985,6 @@ body.is-ready .view-controls {
     margin-left: auto;
   }
 
-  .hover-card {
-    display: none !important;
-  }
 
   /* While the center list is open, the zoom stack would peek out from under
      the popover's lower edge. Take it out of the composition cleanly. */
@@ -3388,12 +3385,6 @@ body.reduced-motion .timebar__date .eyebrow::before {
   animation: none !important;
 }
 
-@media (hover: none) {
-  .hover-card {
-    display: none !important;
-  }
-}
-
 @media (prefers-contrast: more) {
   :root {
     --ink-muted: #b3c0d0;
@@ -3431,6 +3422,25 @@ body.reduced-motion .timebar__date .eyebrow::before {
     clip-path: inset(50%);
     white-space: nowrap;
     border: 0;
+  }
+}
+
+
+/* The date card is now also a tap target on touch; give it a comfortable
+   reading size instead of the dense desktop micro-type. */
+@media (pointer: coarse) {
+  .hover-card {
+    max-width: min(268px, calc(100vw - 20px));
+    padding: 8px 11px;
+  }
+
+  .hover-card strong {
+    font-size: 0.8125rem;
+  }
+
+  .hover-card__body > span {
+    font-size: 0.6875rem;
+    letter-spacing: 0.02em;
   }
 }
 

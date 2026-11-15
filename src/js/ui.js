@@ -531,7 +531,16 @@ export function createUI({ actions }) {
     refs.hoverCard.classList.remove('is-visible');
   }
 
-  function showHover({ name, meta, color, x, y, isCenter, action = null }) {
+  function showHover({
+    name,
+    meta,
+    color,
+    x,
+    y,
+    isCenter,
+    action = null,
+    preferBelow = false,
+  }) {
     refs.hoverDot.style.setProperty('--body-color', color);
     refs.hoverName.textContent = name;
     refs.hoverMeta.textContent = meta;
@@ -539,10 +548,15 @@ export function createUI({ actions }) {
     refs.hoverCard.hidden = false;
     refs.hoverCard.classList.add('is-visible');
 
-    const cardW = 232;
-    const cardH = 52;
+    const cardW = refs.hoverCard.offsetWidth || 232;
+    const cardH = refs.hoverCard.offsetHeight || 52;
     const left = clamp(x + 16, 10, window.innerWidth - cardW - 10);
-    const top = clamp(y - 58, 10, window.innerHeight - cardH - 10);
+    const below = y + 16;
+    const above = y - cardH - 12;
+    let top = preferBelow ? below : above;
+    if (top < 10) top = below;
+    else if (top + cardH > window.innerHeight - 10) top = above;
+    top = clamp(top, 10, window.innerHeight - cardH - 10);
     refs.hoverCard.style.left = `${left}px`;
     refs.hoverCard.style.top = `${top}px`;
   }
@@ -557,6 +571,8 @@ export function createUI({ actions }) {
       y,
       isCenter: false,
       action: '',
+      preferBelow: (globalThis.matchMedia?.('(pointer: coarse)')?.matches ?? false)
+        && y < window.innerHeight * 0.55,
     });
   }
 
