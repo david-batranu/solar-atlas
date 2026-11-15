@@ -581,17 +581,11 @@ function fitView() {
 
 /* ------------------------------------------------------------------- traces */
 
-// Elliptic is a dedicated true-ellipse view: it always uses complete orbit
-// paths, even if the last Orbits/Atlas line style was Solid or Fading.
-function effectiveTrailStyle() {
-  return state.mode === 'elliptic' ? 'always' : state.trailStyle;
-}
-
 function rebuildTraces(now = performance.now(), force = false) {
   if (!force && traces && Math.abs(state.jd - tracesJd) < 1e-8) return;
   currentPositions = astronomy.getPositions(state.jd);
   try {
-    const completeOrbits = effectiveTrailStyle() === 'always';
+    const completeOrbits = state.trailStyle === 'always';
     const build = completeOrbits ? buildCompleteOrbitTraces : buildTraces;
     const samples = completeOrbits
       ? COMPLETE_TRACE_SAMPLES
@@ -694,15 +688,6 @@ function setMode(mode) {
   if (previous === 'realistic') savedRealisticCamera = outgoing;
 
   state.mode = mode;
-
-  // Elliptic uses complete parent ellipses regardless of the chosen trail
-  // style. Entering or leaving it therefore needs a fresh trace build.
-  const geometryChanged = (previous === 'elliptic') !== (mode === 'elliptic');
-  if (geometryChanged) {
-    traces = null;
-    tracesJd = Number.NaN;
-    rebuildTraces(performance.now(), true);
-  }
   recomputeScaleLimits();
 
   let goal;
@@ -714,13 +699,13 @@ function setMode(mode) {
     startAtlasBlend(1, 900);
     ui.announce('Atlas view. Distances are compressed for a top-down map of the whole system.');
   } else if (mode === 'elliptic') {
-    // Frame the whole true-scale system so the complete ellipses read as
-    // ellipses. Unlike Atlas, nothing is radially compressed; zoom in for
-    // detail on the inner worlds.
+    // Frame the whole true-scale system. Unlike Atlas, nothing is radially
+    // compressed; the selected line style and Span still apply, so Always
+    // reveals the complete ellipses while Fading shows their recent trails.
     goal = ellipticFitAllGoal();
     duration = 900;
     startAtlasBlend(0, 900);
-    ui.announce('Elliptic view. True scale, complete elliptical orbits, top-down.');
+    ui.announce('Elliptic view. True scale, top-down. The selected orbit line style and span still apply.');
   } else {
     goal = savedRealisticCamera || defaultRealisticGoal({ defaultTilt: true });
     savedRealisticCamera = null;
@@ -1439,7 +1424,7 @@ function drawFrame(now) {
     centerId: state.centerId,
     hiddenBodies: state.hiddenBodies,
     avoidRects: chromeRects,
-    trailStyle: effectiveTrailStyle(),
+    trailStyle: state.trailStyle,
     showLabels: state.labels,
     hoveredId: state.hoveredId,
     reducedMotion: REDUCED_MOTION,
@@ -1507,7 +1492,7 @@ function boot() {
     getState: () => ({
       centerId: state.centerId,
       mode: state.mode,
-      trailStyle: effectiveTrailStyle(),
+      trailStyle: state.trailStyle,
       trailSpan: state.trailSpan,
       labels: state.labels,
       playing: state.playing,
@@ -1561,7 +1546,7 @@ function boot() {
     getSceneSummary: () => ({
       centerId: state.centerId,
       mode: state.mode,
-      trailStyle: effectiveTrailStyle(),
+      trailStyle: state.trailStyle,
       trailSpan: state.trailSpan,
       atlasBlend: atlas.blend,
       camera: { ...camera },

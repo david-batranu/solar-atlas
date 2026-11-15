@@ -1921,12 +1921,6 @@ body.is-elliptic .canvas-hint span:nth-child(2) {
   display: none;
 }
 
-/* Elliptic always uses complete orbit ellipses; those two controls do not apply. */
-body.is-elliptic .trail-span,
-body.is-elliptic #trail-switch {
-  display: none;
-}
-
 /* ==========================================================================
    11. Hover card
    ========================================================================== */
@@ -4203,7 +4197,7 @@ body.reduced-motion .timebar__date .eyebrow::before {
           </svg>
           <span>Orbits</span>
         </button>
-        <button class="mode-btn" type="button" data-mode="elliptic" aria-pressed="false" aria-label="Elliptic: top-down true-scale view with complete ellipses" title="Top-down true-scale view of the real, complete elliptical orbits">
+        <button class="mode-btn" type="button" data-mode="elliptic" aria-pressed="false" aria-label="Elliptic: top-down true-scale view" title="Top-down true-scale view; uses the same Solid, Fading and Always line styles as Orbits">
           <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <ellipse cx="8" cy="8" rx="6.4" ry="4.1" stroke="currentColor" stroke-width="1.1"/>
             <circle cx="10.2" cy="8" r="1.35" fill="currentColor"/>
@@ -4441,7 +4435,7 @@ body.reduced-motion .timebar__date .eyebrow::before {
         </div>
         <div class="help-row">
           <span class="shortcut">Modes</span>
-          <p><strong>Orbits</strong> is a tilted, explorable true-scale view. <strong>Elliptic</strong> is top-down at true scale with complete elliptical orbits and no radial compression. <strong>Atlas</strong> compresses radial distance to fit the whole system.</p>
+          <p><strong>Orbits</strong> is a tilted, explorable true-scale view. <strong>Elliptic</strong> is top-down at true scale with no radial compression; it uses the same Solid, Fading and Always line styles and Span as Orbits. Choose <strong>Always</strong> to see the complete ellipses. <strong>Atlas</strong> compresses radial distance to fit the whole system.</p>
         </div>
         <div class="help-row">
           <span class="shortcut">Space</span>
@@ -8076,7 +8070,6 @@ function createUI({ actions }) {
     labels: $('#toggle-labels'),
     resetView: $('#reset-view'),
     modeNote: $('#mode-note'),
-    orbitControlLabel: $('#orbit-control-label'),
     modeButtons: Array.from(document.querySelectorAll('[data-mode]')),
     trailButtons: Array.from(document.querySelectorAll('[data-trail]')),
     zoomIn: $('#zoom-in'),
@@ -8547,32 +8540,25 @@ function createUI({ actions }) {
     }
     refs.body.classList.toggle('is-atlas', state.mode === 'atlas');
     refs.body.classList.toggle('is-elliptic', state.mode === 'elliptic');
-    if (refs.orbitControlLabel) {
-      refs.orbitControlLabel.textContent = state.mode === 'elliptic'
-        ? 'Elliptic orbits'
-        : 'Orbit lines';
-    }
     refs.modeNote.textContent = state.mode === 'atlas'
       ? 'Radial distance compressed · top-down. Every world in one frame.'
       : state.mode === 'elliptic'
-        ? 'True distances, true ellipses · top-down. No radial compression.'
+        ? 'True distances, true ellipses · top-down. Same line styles and spans as Orbits; no radial compression.'
         : center.id === 'sun'
           ? 'True distances & inclinations. Elliptic and Atlas are top-down.'
           : `${center.name}-centered view. True distances; Fit reveals the whole system.`;
 
     // Orbit style.
-    if (refs.trailSwitch) refs.trailSwitch.hidden = state.mode === 'elliptic';
     for (const button of refs.trailButtons) {
       const active = button.dataset.trail === state.trailStyle;
       button.classList.toggle('is-active', active);
       button.setAttribute('aria-pressed', active ? 'true' : 'false');
     }
     const always = state.trailStyle === 'always';
-    const hidesSpan = always || state.mode === 'elliptic';
-    refs.trailSpanControl.hidden = hidesSpan;
+    refs.trailSpanControl.hidden = always;
     refs.trailSpan.value = String(state.trailSpan);
-    refs.trailSpanControl.classList.toggle('is-custom', !hidesSpan && state.trailSpan !== 1);
-    refs.trailSpanControl.title = hidesSpan
+    refs.trailSpanControl.classList.toggle('is-custom', !always && state.trailSpan !== 1);
+    refs.trailSpanControl.title = always
       ? 'Always shows complete orbits.'
       : `${state.trailSpan}× history for Solid and Fading trails.`;
 
@@ -9360,17 +9346,11 @@ function fitView() {
 
 /* ------------------------------------------------------------------- traces */
 
-// Elliptic is a dedicated true-ellipse view: it always uses complete orbit
-// paths, even if the last Orbits/Atlas line style was Solid or Fading.
-function effectiveTrailStyle() {
-  return state.mode === 'elliptic' ? 'always' : state.trailStyle;
-}
-
 function rebuildTraces(now = performance.now(), force = false) {
   if (!force && traces && Math.abs(state.jd - tracesJd) < 1e-8) return;
   currentPositions = astronomy.getPositions(state.jd);
   try {
-    const completeOrbits = effectiveTrailStyle() === 'always';
+    const completeOrbits = state.trailStyle === 'always';
     const build = completeOrbits ? buildCompleteOrbitTraces : buildTraces;
     const samples = completeOrbits
       ? COMPLETE_TRACE_SAMPLES
@@ -9473,15 +9453,6 @@ function setMode(mode) {
   if (previous === 'realistic') savedRealisticCamera = outgoing;
 
   state.mode = mode;
-
-  // Elliptic uses complete parent ellipses regardless of the chosen trail
-  // style. Entering or leaving it therefore needs a fresh trace build.
-  const geometryChanged = (previous === 'elliptic') !== (mode === 'elliptic');
-  if (geometryChanged) {
-    traces = null;
-    tracesJd = Number.NaN;
-    rebuildTraces(performance.now(), true);
-  }
   recomputeScaleLimits();
 
   let goal;
@@ -9493,13 +9464,13 @@ function setMode(mode) {
     startAtlasBlend(1, 900);
     ui.announce('Atlas view. Distances are compressed for a top-down map of the whole system.');
   } else if (mode === 'elliptic') {
-    // Frame the whole true-scale system so the complete ellipses read as
-    // ellipses. Unlike Atlas, nothing is radially compressed; zoom in for
-    // detail on the inner worlds.
+    // Frame the whole true-scale system. Unlike Atlas, nothing is radially
+    // compressed; the selected line style and Span still apply, so Always
+    // reveals the complete ellipses while Fading shows their recent trails.
     goal = ellipticFitAllGoal();
     duration = 900;
     startAtlasBlend(0, 900);
-    ui.announce('Elliptic view. True scale, complete elliptical orbits, top-down.');
+    ui.announce('Elliptic view. True scale, top-down. The selected orbit line style and span still apply.');
   } else {
     goal = savedRealisticCamera || defaultRealisticGoal({ defaultTilt: true });
     savedRealisticCamera = null;
@@ -10218,7 +10189,7 @@ function drawFrame(now) {
     centerId: state.centerId,
     hiddenBodies: state.hiddenBodies,
     avoidRects: chromeRects,
-    trailStyle: effectiveTrailStyle(),
+    trailStyle: state.trailStyle,
     showLabels: state.labels,
     hoveredId: state.hoveredId,
     reducedMotion: REDUCED_MOTION,
@@ -10286,7 +10257,7 @@ function boot() {
     getState: () => ({
       centerId: state.centerId,
       mode: state.mode,
-      trailStyle: effectiveTrailStyle(),
+      trailStyle: state.trailStyle,
       trailSpan: state.trailSpan,
       labels: state.labels,
       playing: state.playing,
@@ -10340,7 +10311,7 @@ function boot() {
     getSceneSummary: () => ({
       centerId: state.centerId,
       mode: state.mode,
-      trailStyle: effectiveTrailStyle(),
+      trailStyle: state.trailStyle,
       trailSpan: state.trailSpan,
       atlasBlend: atlas.blend,
       camera: { ...camera },

@@ -1910,12 +1910,6 @@ body.is-elliptic .canvas-hint span:nth-child(2) {
   display: none;
 }
 
-/* Elliptic always uses complete orbit ellipses; those two controls do not apply. */
-body.is-elliptic .trail-span,
-body.is-elliptic #trail-switch {
-  display: none;
-}
-
 /* ==========================================================================
    11. Hover card
    ========================================================================== */

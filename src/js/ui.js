@@ -175,7 +175,6 @@ export function createUI({ actions }) {
     labels: $('#toggle-labels'),
     resetView: $('#reset-view'),
     modeNote: $('#mode-note'),
-    orbitControlLabel: $('#orbit-control-label'),
     modeButtons: Array.from(document.querySelectorAll('[data-mode]')),
     trailButtons: Array.from(document.querySelectorAll('[data-trail]')),
     zoomIn: $('#zoom-in'),
@@ -646,32 +645,25 @@ export function createUI({ actions }) {
     }
     refs.body.classList.toggle('is-atlas', state.mode === 'atlas');
     refs.body.classList.toggle('is-elliptic', state.mode === 'elliptic');
-    if (refs.orbitControlLabel) {
-      refs.orbitControlLabel.textContent = state.mode === 'elliptic'
-        ? 'Elliptic orbits'
-        : 'Orbit lines';
-    }
     refs.modeNote.textContent = state.mode === 'atlas'
       ? 'Radial distance compressed · top-down. Every world in one frame.'
       : state.mode === 'elliptic'
-        ? 'True distances, true ellipses · top-down. No radial compression.'
+        ? 'True distances, true ellipses · top-down. Same line styles and spans as Orbits; no radial compression.'
         : center.id === 'sun'
           ? 'True distances & inclinations. Elliptic and Atlas are top-down.'
           : `${center.name}-centered view. True distances; Fit reveals the whole system.`;
 
     // Orbit style.
-    if (refs.trailSwitch) refs.trailSwitch.hidden = state.mode === 'elliptic';
     for (const button of refs.trailButtons) {
       const active = button.dataset.trail === state.trailStyle;
       button.classList.toggle('is-active', active);
       button.setAttribute('aria-pressed', active ? 'true' : 'false');
     }
     const always = state.trailStyle === 'always';
-    const hidesSpan = always || state.mode === 'elliptic';
-    refs.trailSpanControl.hidden = hidesSpan;
+    refs.trailSpanControl.hidden = always;
     refs.trailSpan.value = String(state.trailSpan);
-    refs.trailSpanControl.classList.toggle('is-custom', !hidesSpan && state.trailSpan !== 1);
-    refs.trailSpanControl.title = hidesSpan
+    refs.trailSpanControl.classList.toggle('is-custom', !always && state.trailSpan !== 1);
+    refs.trailSpanControl.title = always
       ? 'Always shows complete orbits.'
       : `${state.trailSpan}× history for Solid and Fading trails.`;
 
