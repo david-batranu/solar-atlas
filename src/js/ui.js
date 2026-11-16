@@ -158,11 +158,18 @@ export function createUI({ actions }) {
   let historyEditing = false;
   let appliedHistoryValue = 1;
   let renderedHistoryMode = null;
+  const mobileControlsQuery = window.matchMedia?.('(max-width: 760px)') ?? null;
+  let controlsCollapsed = Boolean(mobileControlsQuery?.matches);
 
   const refs = {
     body: document.body,
     canvas: $('#scene'),
     controls: $('#controls'),
+    controlsToggle: $('#controls-toggle'),
+    controlsToggleLabel: $('#controls-toggle-label'),
+    controlsSummaryOrb: $('#controls-summary-orb'),
+    controlsSummaryName: $('#controls-summary-name'),
+    controlsSummaryDetail: $('#controls-summary-detail'),
     centerPicker: $('#center-picker'),
     centerButton: $('#center-button'),
     centerOrb: $('#center-orb'),
@@ -659,6 +666,17 @@ export function createUI({ actions }) {
     }
   }
 
+  function setControlsCollapsed(collapsed) {
+    controlsCollapsed = Boolean(collapsed);
+    refs.controls.classList.toggle('is-collapsed', controlsCollapsed);
+    refs.controlsToggle.setAttribute('aria-expanded', controlsCollapsed ? 'false' : 'true');
+    refs.controlsToggleLabel.textContent = controlsCollapsed ? 'Adjust' : 'Hide';
+    refs.controlsToggle.setAttribute('aria-label', controlsCollapsed
+      ? 'Show orbit controls'
+      : 'Hide orbit controls');
+    if (controlsCollapsed) closeCenterMenu(false);
+  }
+
   function formatHistoryValue(mode, value) {
     if (mode === 'fixed') {
       return `${value} ${value === 1 ? 'year' : 'years'}`;
@@ -835,6 +853,16 @@ export function createUI({ actions }) {
     const historyValue = historyMode === 'fixed' ? state.historyYears : state.trailSpan;
     updateHistoryControl(historyMode, historyValue);
     refs.historyHint.hidden = historyMode !== 'fixed';
+    const trailLabel = state.trailStyle === 'solid'
+      ? 'Solid'
+      : state.trailStyle === 'always'
+        ? 'Always'
+        : 'Fading';
+    refs.controlsSummaryOrb.style.setProperty('--body-color', center.color);
+    refs.controlsSummaryName.textContent = center.name;
+    refs.controlsSummaryDetail.textContent = always
+      ? 'Always · complete orbits'
+      : `${trailLabel} · ${formatHistoryValue(historyMode, historyValue)}`;
     refs.historyControl.title = always
       ? 'Always shows complete orbits.'
       : historyMode === 'fixed'
@@ -968,6 +996,16 @@ export function createUI({ actions }) {
       commitHistoryValue();
     });
 
+    refs.controlsToggle.addEventListener('click', () => {
+      setControlsCollapsed(!refs.controls.classList.contains('is-collapsed'));
+    });
+
+    if (mobileControlsQuery?.addEventListener) {
+      mobileControlsQuery.addEventListener('change', (event) => {
+        setControlsCollapsed(event.matches);
+      });
+    }
+
     refs.historyEdit.addEventListener('click', startHistoryEdit);
     refs.historyNumber.addEventListener('input', () => {
       const number = Number(refs.historyNumber.value);
@@ -1054,6 +1092,7 @@ export function createUI({ actions }) {
   }
 
   bind();
+  setControlsCollapsed(controlsCollapsed);
 
   return {
     sync,

@@ -87,6 +87,25 @@
   </header>
 
   <aside class="controls panel" id="controls" aria-label="Orbit controls" tabindex="-1">
+    <button
+      class="controls__summary"
+      id="controls-toggle"
+      type="button"
+      aria-expanded="true"
+      aria-controls="controls-body"
+    >
+      <span class="center-button__orb controls__summary-orb" id="controls-summary-orb" style="--body-color:#f2c56a"></span>
+      <span class="controls__summary-copy">
+        <span class="controls__summary-name" id="controls-summary-name">Sun</span>
+        <span class="controls__summary-detail" id="controls-summary-detail">Fading · 1×</span>
+      </span>
+      <span class="controls__summary-action" id="controls-toggle-label">Adjust</span>
+      <svg class="chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M4.5 6.25 8 9.75l3.5-3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+
+    <div class="controls__body" id="controls-body">
     <section class="control">
       <div class="control__head">
         <span class="eyebrow">Center of orbit</span>
@@ -188,6 +207,7 @@
     </section>
 
     <p class="panel__note" id="mode-note">True distances and inclinations. Drag to pan, scroll to zoom.</p>
+    </div>
   </aside>
 
   <aside class="view-controls" aria-label="Zoom and view controls">
@@ -317,6 +337,10 @@
         <div class="help-row">
           <span class="shortcut">Drag</span>
           <p>Pan the map. In Orbits, <kbd>Shift</kbd> + drag on desktop or drag with two fingers on touch to tilt and rotate. Pinch or scroll to zoom; arrow keys pan, and <kbd>Shift</kbd> + arrows tilt on desktop.</p>
+        </div>
+        <div class="help-row">
+          <span class="shortcut">Phone</span>
+          <p>Orbit controls start in a compact summary line. Tap <strong>Adjust</strong> for the full panel and <strong>Hide</strong> when you want the map back.</p>
         </div>
         <div class="help-row">
           <span class="shortcut">Scroll</span>

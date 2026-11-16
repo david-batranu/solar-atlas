@@ -43,7 +43,7 @@ external fonts or images. Every world can be shown or hidden independently, incl
 *Hovering any orbit line reveals the exact UTC date and time at that position, even on faded history.*
 
 ![Mobile orbit date card](docs/screenshots/mobile-orbit-date.png)
-*On touch, tap any orbit line for its UTC date card. Two-finger drag tilts and rotates the Orbits view; pinch still zooms.*
+*On touch, tap any orbit line for its UTC date card. Two-finger drag tilts and rotates the Orbits view; pinch still zooms. The orbit panel starts collapsed on phones — tap **Adjust** to open it and **Hide** to give the map the space back.*
 
 ![Solar Atlas — Visible worlds dialog](docs/screenshots/visible-worlds-dialog.png)
 *The Worlds checklist. Show all, clear to the center, then tick the worlds you want to inspect.*
@@ -79,6 +79,7 @@ Node 18+ is recommended. There is no install step.
 | **Orbits / Overview / Atlas** | Tilted true-scale view; top-down true-scale view with no radial compression; or the top-down radially compressed whole-system map. Overview uses the same line styles and History controls as Orbits. |
 | **Drag** | Pan the map. |
 | **Shift + drag** (desktop) / **two-finger drag** (touch) | Tilt and rotate the orbit view in Orbits (locked in Overview and Atlas). Pinch to zoom. |
+| **Mobile controls** | On phones, Center, Orbit lines and History collapse into a compact summary line showing the active center, line style and history. Tap **Adjust** to expand; tap **Hide** to return the space to the map. |
 | **Scroll / pinch** | Zoom toward the pointer or pinch center. |
 | **Play / reverse**, tempo slider, HR–YR presets | Control simulated time from 30 minutes to one year per real second, forwards or backwards. |
 | **Now** | Return to the present moment. |
